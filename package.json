@@ -1,0 +1,12 @@
+{
+  "name": "qiita-articles",
+  "private": true,
+  "description": "Qiita articles by @Nekorock, published with Qiita CLI",
+  "scripts": {
+    "preview": "qiita preview",
+    "publish": "qiita publish --all"
+  },
+  "devDependencies": {
+    "@qiita/qiita-cli": "~1.10.0"
+  }
+}
