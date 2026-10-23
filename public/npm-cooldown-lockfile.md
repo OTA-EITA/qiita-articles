@@ -3,11 +3,11 @@ title: 「公開から7日待つ」設定、lockfile に入った新しすぎる
 tags:
   - npm
   - pnpm
-  - yarn
+  - YARN
   - Security
   - サプライチェーン攻撃
 private: true
-updated_at: '2026-10-23T18:40:45+09:00'
+updated_at: '2026-10-23T19:18:06+09:00'
 id: d25fc8cb764c0e9325bc
 organization_url_name: null
 slide: false
