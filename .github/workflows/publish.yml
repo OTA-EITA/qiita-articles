@@ -1,0 +1,47 @@
+name: publish
+
+# Publishes public/*.md to Qiita on every push to main, then commits back the
+# article ids Qiita assigns. Same steps as increments/qiita-cli/actions/publish,
+# but the CLI comes from this repository's lockfile (pinned, install scripts off)
+# instead of the newest release.
+on:
+  push:
+    branches: [main]
+    paths: ["public/**"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Pushes the article ids back to public/.
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          check-latest: true
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx qiita publish --all --root .
+        env:
+          QIITA_TOKEN: ${{ secrets.QIITA_TOKEN }}
+      - name: commit article ids
+        run: |
+          git add public
+          if ! git diff --staged --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m "chore: Qiita の記事 ID を反映"
+            git push
+          fi
