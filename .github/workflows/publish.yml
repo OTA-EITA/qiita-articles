@@ -27,6 +27,8 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
+          # Only the last step needs to push; it gets the token explicitly.
+          persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
@@ -37,11 +39,14 @@ jobs:
         env:
           QIITA_TOKEN: ${{ secrets.QIITA_TOKEN }}
       - name: commit article ids
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           git add public
           if ! git diff --staged --quiet; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git commit -m "chore: Qiita の記事 ID を反映"
-            git push
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git" HEAD:main
           fi
