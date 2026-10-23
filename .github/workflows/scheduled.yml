@@ -1,0 +1,53 @@
+name: scheduled
+
+# Mon/Wed/Fri 08:00 JST: articles listed in schedule.json whose time has come
+# are switched from limited sharing to public, then published.
+on:
+  schedule:
+    - cron: "0 23 * * 0,2,4"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          check-latest: true
+          cache: npm
+      - run: node scripts/release-scheduled.mjs
+      - name: publish if anything was released
+        env:
+          QIITA_TOKEN: ${{ secrets.QIITA_TOKEN }}
+        run: |
+          if git diff --quiet public; then exit 0; fi
+          npm ci --ignore-scripts
+          npx qiita publish --all --root .
+      # A push made with GITHUB_TOKEN does not trigger the publish workflow,
+      # so publishing happens above and this only records the result.
+      - name: commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          git add public
+          if ! git diff --staged --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m "chore: 予約していた記事を公開"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git" HEAD:main
+          fi
