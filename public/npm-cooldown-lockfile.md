@@ -1,11 +1,11 @@
 ---
-title: npm の「公開から 7 日待つ」設定は lockfile にすでに入った版を止めない ── 検証と CI での塞ぎ方
+title: 「公開から7日待つ」設定、lockfile に入った新しすぎる版は止まるのか npm・pnpm・Yarn で試した
 tags:
   - npm
+  - pnpm
+  - yarn
   - Security
-  - Node.js
   - サプライチェーン攻撃
-  - GitHubActions
 private: true
 updated_at: '2026-10-23T18:40:45+09:00'
 id: d25fc8cb764c0e9325bc
@@ -16,189 +16,131 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
-## はじめに
+## きっかけ
 
-npm のサプライチェーン攻撃への対策として、「公開されたばかりの版は入れない（クールダウン）」が広まっています。npm にも `min-release-age` という設定が入り、pnpm や Yarn にも同じ機能があります。
+先日、自分の TypeScript のリポジトリをいくつか見直したら、公開されてから 1 週間たっていない依存が 30〜50 個ずつ入っていました。依存を足したタイミングで普通に `npm install` していただけなので、そうなるのは当たり前なのですが、去年の chalk / debug の乗っ取りや Shai-Hulud のことを考えると少し怖い状態です。
 
-ただ、実際に試してみると **lockfile にすでに入っている新しい版は、この設定では止まりません**。CI でよく使う `npm ci` も、警告なしでそのまま入れます。
+対策としてよく紹介されているのが「公開されたばかりの版は入れない」設定（クールダウン）です。npm・pnpm・Yarn のどれにも同じような設定があります。
 
-この記事では、その挙動を実際に確かめた結果と、CI で塞ぐ方法をまとめます。
+ただ、npm の `min-release-age` は **lockfile がすでにあると効かない**ことが、すでに何人かの方に指摘されています（記事の最後に載せています）。では pnpm と Yarn はどうなのか。自分が探した範囲では、実際に動かして比べた記事が見つからなかったので、同じ条件で 3 つとも試してみました。
 
-![設定が効く場所・効かない場所](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/where.png)
+## 試した結果
 
-## 結論
+![3つのパッケージマネージャーの結果](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/cmp.png)
 
-- `min-release-age`（や `--before`、Dependabot の `cooldown`）が効くのは、**新しく版を決めるとき**だけ
-- lockfile どおりに入れる `npm ci` と、lockfile がある状態の `npm install` には効かない
-- 誰かが一度でも新しすぎる版で lockfile を作ってコミットすると、以後の CI はそれをそのまま入れる
-- なので、**lockfile 自体を CI で検査して止める**のが確実
+新しく版を決めるときは 3 つとも設定どおり動きました。違いが出たのは lockfile どおりに入れるときで、止めてくれたのは pnpm だけでした。npm と Yarn は、lockfile に書いてある公開 3 日の版をエラーも警告もなく入れます。
 
-## 背景：攻撃は公開から数時間〜数日のうちに起きる
+## 試した条件
 
-2025 年 9 月には、npm で大きな事件が続けて起きました。
+- 2026 年 10 月 23 日、macOS、Node.js 24.22.1
+- 依存は `typescript-eslint@^8.70.0` だけのプロジェクト
+- この時点で `typescript-eslint` の最新は 8.72.0（10 月 19 日公開）、その前が 8.71.2（10 月 12 日公開）
 
-- **chalk / debug の乗っ取り（9 月 8 日）**：メンテナーのアカウントが乗っ取られ、週に何億回もダウンロードされるパッケージに悪意ある版が公開されました。出回っていたのは約 2 時間です。
-- **Shai-Hulud（9 月 14〜18 日）**：`postinstall` で開発者の認証情報を盗み、そのトークンで別のパッケージにも自分を仕込む自己増殖型のワームです。500 以上の版が汚染されました。
+手順はどれも同じです。
 
-![悪意ある版が出回った期間と 7 日のクールダウン](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/timeline.png)
+1. クールダウンなしで `install` して、8.72.0 入りの lockfile を作る
+2. 「公開から 7 日待つ」設定を入れる
+3. `node_modules` を消して、CI と同じコマンド（`npm ci` / `pnpm install --frozen-lockfile` / `yarn install --immutable`）で入れ直す
 
-どちらも、悪意ある版が出回ったのは公開から数時間〜数日の間です。公開から一定期間たった版しか入れなければ、この期間を避けられます。これがクールダウンの考え方です。
+あわせて、lockfile がない状態からの解決も試しています。
 
-## npm の `min-release-age` を試す
-
-npm 11.10.0 から `min-release-age`（単位は日）が使えます。プロジェクトの `.npmrc` に書いておけば、`npm install` のたびに効きます。
+設定の書き方は、名前も単位もばらばらなので注意が必要です。npm は日、pnpm と Yarn は分で指定します（Yarn は `7d` のような書き方もできます）。
 
 ```ini:.npmrc
 min-release-age=7
 ```
 
-ちなみに pnpm は `minimumReleaseAge`（単位は分）、Yarn は `npmMinimalAgeGate`（単位は分）と、名前も単位もばらばらなので注意してください。
-
-### 検証した環境
-
-- Node.js 24.22.1 / npm 12.2.1（2026 年 10 月 23 日に実施）
-- 依存は `typescript-eslint@^8.70.0` だけのプロジェクト
-- この時点で `typescript-eslint` の最新は 8.72.0（公開から 3 日）、その前は 8.71.2
-
-### 検証スクリプト
-
-```bash:run.sh
-#!/usr/bin/env bash
-set -u
-npm_() { npx -y npm@12.2.1 "$@" --ignore-scripts --no-audit --no-fund; }
-ver() { node -p "require('$1').packages['node_modules/typescript-eslint'].version"; }
-
-mkdir -p a b
-pkg='{"name":"demo","version":"1.0.0","dependencies":{"typescript-eslint":"^8.70.0"}}'
-echo "$pkg" > a/package.json; echo "$pkg" > b/package.json
-
-echo "== 1. npm install（クールダウンなし）"
-(cd a && npm_ install >/dev/null 2>&1 && echo "locked: $(ver ./package-lock.json)")
-
-echo "== 2. lockfile がない状態で npm install --min-release-age=7"
-(cd b && npm_ install --min-release-age=7 >/dev/null 2>&1 && echo "locked: $(ver ./package-lock.json)")
-
-echo "== 3. 1 の lockfile で npm ci --min-release-age=7"
-(cd a && rm -rf node_modules && npm_ ci --min-release-age=7 | tail -1 \
-  && echo "installed: $(node -p "require('./node_modules/typescript-eslint/package.json').version")")
-
-echo "== 4. 1 の lockfile があるまま npm install --min-release-age=7"
-(cd a && npm_ install --min-release-age=7 | tail -1 && echo "locked: $(ver ./package-lock.json)")
+```yaml:pnpm-workspace.yaml
+minimumReleaseAge: 10080
 ```
 
-### 結果
+```yaml:.yarnrc.yml
+npmMinimalAgeGate: 7d
+```
 
-![検証結果](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/experiment.png)
+npm は 11.10.0 から、pnpm は 10.16.0 から使えます。npm 11.9.0 で `npm config ls -l` を見ると、`min-release-age` 自体が出てきませんでした。
 
-| ケース | 入った版 | 判定 |
-|---|---|---|
-| 1. クールダウンなしで `npm install` | 8.72.0 | （比較用） |
-| 2. lockfile なしで `npm install --min-release-age=7` | **8.71.2** | ✅ 公開 7 日以上の版が選ばれる |
-| 3. 1 の lockfile で `npm ci --min-release-age=7` | **8.72.0** | ❌ 警告なしで入る |
-| 4. 1 の lockfile があるまま `npm install --min-release-age=7` | **8.72.0** | ❌ lockfile はそのまま |
+## 実際の出力
 
-ケース 2 のとおり、版を新しく決めるときはきちんと効きます。一方、ケース 3 と 4 では、lockfile に書かれた公開 3 日の版がそのまま入りました。エラーも警告も出ません。
+![CI と同じコマンドを実行した結果](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/ci-run.png)
 
-考えてみれば `npm ci` は「lockfile どおりに入れる」ためのコマンドなので、自然な挙動です。ただ、運用で困るのは次のような場面です。
+pnpm だけが、lockfile の 95 件を公開日と照らし合わせて、引っかかった 13 件を全部出して失敗しました。エラーメッセージには「lockfile が古いか、誰かがポリシーを回避して作った lockfile をコミットした可能性がある。pnpm-lock.yaml の最近の変更を確認すること」という趣旨の説明まで付いています。
 
-- `.npmrc` を設定していない人や環境（設定前に作られたブランチ、ローカルのグローバル npm など）で lockfile が更新され、そのままマージされる
-- CI では `npm ci` しか実行しないので、どこにも引っかからない
+pnpm のドキュメントを見ると、`pnpm install` は読み込んだ lockfile の全エントリに `minimumReleaseAge` をかけ直すと書かれています。これを省略する `trustLockfile` という設定があり、既定は `false` です。外部の人が lockfile を編集できるなら `false` のままにしておくように、とも書かれていました。
 
-## 対策：CI で lockfile を検査する
+### pnpm で少し気になったところ
 
-lockfile は単なる JSON なので、中の各パッケージの公開日をレジストリに問い合わせれば、新しすぎる版を見つけられます。
+失敗したあとに `node_modules` を見ると、8.72.0 はすでに配置されていました。チェックはパッケージの配置と並行して走っていて、最後に失敗する作りのようです。
 
-これを CI で行うために、[lockfile-guard](https://github.com/OTA-EITA/lockfile-guard) というツールを作りました（自作です）。公開日のチェックのほかに、インストールスクリプトや、レジストリ以外からの取得、integrity の欠落、人気パッケージに似せた名前（タイポスクワット）も見ます。
+そこで、`postinstall` を持つ esbuild で同じことを試しました。チェックに通る場合は `esbuild postinstall$ node install.js` が実行されますが、チェックに引っかかる場合は、配置はされても `postinstall` は実行されずに終わりました。Shai-Hulud のような `postinstall` で動くタイプは、ここで止まることになります。
 
-上のケース 1 の lockfile を検査すると、こうなります。
+それでも、ファイル自体は置かれます。後続のステップで実行されないよう、CI の該当ジョブはこの時点で落とす（終了コードを無視しない）のが前提です。
 
-![lockfile-guard の出力](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/guard.png)
+## npm と Yarn をどう補うか
 
-`typescript-eslint` 本体だけでなく、一緒に更新された依存先の 12 件も出ています。終了コードが 1 になるので、CI ならここで止まります。
+npm と Yarn を使っている場合は、lockfile を自分で検査するしかありません。とはいえ、やることは単純です。lockfile に並んでいるパッケージの公開日をレジストリから取って比べるだけです。
 
-GitHub Actions ではこう書きます。結果は PR のアノテーションと Code scanning（SARIF）に出ます。
+```bash
+npm view typescript-eslint time --json | grep '"8.72.0"'
+#   "8.72.0": "2026-10-19T17:08:09.147Z",
+```
+
+（pnpm のエラーに出ていた時刻とは 1 分ほどずれていましたが、7 日の判定には影響しません）
+
+自分は、これを CI で回すために [lockfile-guard](https://github.com/OTA-EITA/lockfile-guard) という小さなツールを作って使っています。上の npm の lockfile を検査すると、pnpm と同じ 13 件が出ました。
+
+![lockfile-guard で同じ lockfile を検査した結果](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/guard.png)
+
+GitHub Actions では、`npm ci` より前のジョブに置いています。
 
 ```yaml:.github/workflows/ci.yml
-jobs:
   lockfile-guard:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: OTA-EITA/lockfile-guard@v0.1.1 # 実運用ではコミット SHA で固定
-        id: guard
+      - uses: OTA-EITA/lockfile-guard@v0.1.1 # 実際はコミット SHA で固定しています
         with:
           min-age: "7"
           fail-on: medium
-      - uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: ${{ steps.guard.outputs.sarif-file }}
-          category: lockfile-guard
 ```
 
-もちろん、自作ツールでなくても考え方は同じです。`npm view <パッケージ> time --json` で公開日は取れるので、lockfile の `packages` を回して比べるだけでも作れます。
+ツールは何でもよくて、大事なのは「lockfile がコミットされた時点の版を CI で見る」ことです。手元の `.npmrc` や Dependabot の設定がどれだけ正しくても、設定の入っていない環境で一度でも lockfile が更新されると、その版がそのまま CI を通ります。
 
-## 新しく決めるときの対策も並べておく
+## そもそも何日待てばいいのか
 
-lockfile の検査は「最後の砦」なので、版を決める時点の対策と組み合わせます。
+参考までに、去年の 2 件を並べるとこうなります。
 
-### 手元：`.npmrc` と `--before`
+![悪意ある版が出回った期間と7日のクールダウン](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/attack-window.png)
 
-`.npmrc` に `min-release-age=7` を書いておくのが一番手軽です。npm が古い環境では、日付を指定する `--before` でも同じことができます。
+- chalk / debug の乗っ取り（2025 年 9 月 8 日）：悪意ある版がダウンロードできたのは 13:16〜15:15 UTC 頃の約 2 時間
+- Shai-Hulud（2025 年 9 月中旬）：`postinstall` で認証情報を盗み、盗んだトークンで別のパッケージにも自分を仕込むワーム。CISA によると 500 以上のパッケージが汚染され、9 月 16 日より前の版に固定するよう勧告が出ました
 
-```bash
-# 7 日前の時点で公開されていた版だけで lockfile を作り直す
-rm -rf node_modules package-lock.json
-npm install --before "$(date -v-7d +%Y-%m-%d)"   # macOS の date
-```
+Andrew Nesbitt さんの記事では、調べられた 10 件のサプライチェーン攻撃のうち 8 件で、悪意ある版が使えた期間が 1 週間未満だったと紹介されています。7 日という数字は、このあたりが根拠になっています。pnpm 11 は何も設定しなくても 1 日（1440 分）待つようになっています。
 
-**lockfile を消してから**実行するのがポイントです。lockfile が残っていると、ケース 4 と同じく古い解決結果がそのまま使われます。
+## 自分のリポジトリでやったこと
 
-### Dependabot：`cooldown`
+最初に書いた 3 つのリポジトリは npm なので、次のようにしました。
 
-Dependabot も公開直後の版を提案しないように設定できます。
+- lockfile を消して、`npm install --before <7日前の日付>` で作り直す（lockfile を残したままだと、上の npm の結果と同じで古い解決がそのまま使われます）
+- CI に lockfile の検査を足す
+- Dependabot に `cooldown: default-days: 7` を設定する
+- CI のインストールは `npm ci --ignore-scripts` にする
 
-```yaml:.github/dependabot.yml
-version: 2
-updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
-    # メジャー更新は互換性を確かめて手で上げる
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
-```
+作り直しの途中で、使っていた ESLint 9 が非推奨になっていることにも気づいたので、ついでに 10 に上げました。
 
-`cooldown` だけにしたところ、TypeScript 7 や @types/node 26 といったメジャー更新がまとめて提案され、CI が落ちました。メジャーは手で上げる運用にしたほうが扱いやすいです。
+## おわりに
 
-### おまけ：インストールスクリプトを動かさない
+npm も `min-release-age` で lockfile を見てくれればいいのに、とは思います。ただ、`npm ci` が「lockfile どおりに入れる」コマンドである以上、今の挙動も筋は通っています。
 
-Shai-Hulud は `postinstall` で動きました。CI では `npm ci --ignore-scripts` にしておくと、万一入ってしまってもインストール時には実行されません。esbuild のようにスクリプトを持つパッケージでも、多くはこれで問題なく動きます。
-
-## 自分のリポジトリで試したら
-
-手元の TypeScript のリポジトリ 3 つで lockfile-guard を動かしたところ、どれも **公開 7 日未満の版が 30〜50 件** 入っていました。依存を足したタイミングで普通に `npm install` していただけです。あわせて、使っていた ESLint 9 が非推奨（サポート終了）になっていることも分かりました。
-
-3 つとも、ESLint 10 に上げたうえで lockfile を作り直し、検出 0 件にしています。
-
-## まとめ
-
-- クールダウン（`min-release-age`、`--before`、Dependabot の `cooldown`）は、版を **新しく決めるとき** の対策
-- lockfile にすでに入った版は `npm ci` でも素通りするので、**CI で lockfile を検査して止める**
-- CI では `npm ci --ignore-scripts` も併用する
+pnpm を使っているなら、設定を入れるだけで CI まで守られます。npm と Yarn の場合は、設定とは別に CI で lockfile を見る仕組みを用意しておくのがよさそうです。
 
 ## 参考
 
-- [Widespread npm Supply Chain Attack: Breaking Down Impact & Scope Across Debug, Chalk, and Beyond（Wiz）](https://www.wiz.io/blog/widespread-npm-supply-chain-attack-breaking-down-impact-scope-across-debug-chalk)
-- [Shai-Hulud: The novel self-replicating worm infecting hundreds of npm packages（Sysdig）](https://sysdig.com/blog/shai-hulud-the-novel-self-replicating-worm-infecting-hundreds-of-npm-packages)
+- [Minimum Release Age: npm, pnpm, Yarn, Bun and Deno Settings](https://www.devanshuverma.in/blog/minimum-release-age-package-managers-complete-guide)：各パッケージマネージャーの設定の一覧と、npm ci が lockfile の版をそのまま入れることの指摘
+- [2026年春のOSS事故から学ぶ npm・pnpm・GitHub Actionsのサプライチェーン防御](https://zenn.dev/trknhr/articles/989086c7b8ecf0)
 - [Package managers need to cool down（Andrew Nesbitt）](https://nesbitt.io/2026/03/04/package-managers-need-to-cool-down)
-- [lockfile-guard](https://github.com/OTA-EITA/lockfile-guard)
+- [pnpm: Dependency resolution settings（minimumReleaseAge / trustLockfile）](https://pnpm.io/settings/dependency-resolution)
+- [Widespread npm Supply Chain Attack（Wiz）](https://www.wiz.io/blog/widespread-npm-supply-chain-attack-breaking-down-impact-scope-across-debug-chalk)
+- [Widespread Supply Chain Compromise Impacting npm Ecosystem（CISA）](https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem)
