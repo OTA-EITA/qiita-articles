@@ -27,7 +27,7 @@
 | # | テーマ | 状態 |
 |---|---|---|
 | 1 | 「公開から7日待つ」設定と lockfile（npm・pnpm・Yarn の比較） | 公開済み（2026-10-23） |
-| 2 | Claude Code の agent teams を tmux で動かしたら「読むだけ」が守られなかった | 限定共有（確認待ち） |
+| 2 | Claude Code の agent teams を tmux で動かしたら「読むだけ」が守られなかった | 公開予約（2026-10-26 8:00） |
 | 2b | Alertmanager のラベルから Slack に `@channel` を埋め込まれる問題 | 未着手 |
 | 3 | GitHub Actions の pwn request とスクリプト注入を自分のリポジトリで潰す | 未着手 |
 | 4 | GitHub Actions → AWS の OIDC で `sub` 条件が甘いと何が起きるか | 未着手 |
