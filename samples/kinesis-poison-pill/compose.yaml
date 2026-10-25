@@ -1,0 +1,13 @@
+services:
+  localstack:
+    # 4.14.0 is the last community image that starts without an auth token.
+    # Newer images (2026.03.0+) require LOCALSTACK_AUTH_TOKEN.
+    image: localstack/localstack:4.14.0
+    container_name: kinesis-poison-pill-localstack
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      - SERVICES=kinesis,lambda,sqs,iam,logs,sts
+      - DEBUG=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
