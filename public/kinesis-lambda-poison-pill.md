@@ -3,15 +3,17 @@ title: 壊れた決済イベント 1 件で、後ろの不正な決済はどう�
 tags:
   - AWS
   - Kinesis
-  - Lambda
+  - lambda
   - SRE
   - LocalStack
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-10-25T21:41:52+09:00'
+id: ed173fb261c971c2d4c7
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## きっかけ
