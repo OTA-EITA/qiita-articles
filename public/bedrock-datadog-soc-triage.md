@@ -375,7 +375,7 @@ SOC のアラートで効いてくるのは、たいてい入力のほうだと�
 - [Streamlining Security Investigations with Agents（Slack Engineering）](https://slack.engineering/streamlining-security-investigations-with-agents/)
 - [Automate cloud security vulnerability assessment and alerting using Amazon Bedrock（AWS）](https://aws.amazon.com/blogs/machine-learning/automate-cloud-security-vulnerability-assessment-and-alerting-using-amazon-bedrock/)
 - [How Reco transforms security alerts using Amazon Bedrock（AWS）](https://aws.amazon.com/blogs/machine-learning/how-reco-transforms-security-alerts-using-amazon-bedrock/)
-- [Bits Security Analyst（Datadog）](https://docs.datadoghq.com/bits_ai/bits_security_analyst.md)、[Automate Cloud SIEM investigations with Bits Security Analyst（Datadog ブログ）](https://www.datadoghq.com/blog/bits-ai-security-analyst/)
+- [Bits Security Analyst（Datadog）](https://docs.datadoghq.com/bits_ai/bits_security_analyst/)、[Automate Cloud SIEM investigations with Bits Security Analyst（Datadog ブログ）](https://www.datadoghq.com/blog/bits-ai-security-analyst/)
 
 ドキュメント
 
