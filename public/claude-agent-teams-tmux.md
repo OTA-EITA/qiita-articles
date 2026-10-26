@@ -6,8 +6,8 @@ tags:
   - AIエージェント
   - SRE
   - Security
-private: true
-updated_at: '2026-10-25T21:41:52+09:00'
+private: false
+updated_at: '2026-10-26T09:53:17+09:00'
 id: 29d59923e2c52364c878
 organization_url_name: null
 slide: false
