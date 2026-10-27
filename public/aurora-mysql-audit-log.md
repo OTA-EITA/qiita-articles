@@ -7,11 +7,13 @@ tags:
   - Security
   - SRE
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-10-27T23:30:48+09:00'
+id: 0f79e37af673acd01119
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## きっかけ
