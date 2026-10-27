@@ -72,6 +72,10 @@ flowchart TD
 
 `NODE_ENV` のような決まった変数は読み飛ばしてくれますが、`PGPASSWORD` や `DB_PASSWORD` は対象外です。そのため、`PGPASSWORD='…' psql …` を自動で許可するルールは、先頭の `PGPASSWORD='…'` まで含んだ形になります。`curl -H "Authorization: Bearer …"` のようにヘッダーに入っている場合も同じで、コマンドの文字列にトークンが含まれている以上、ルールにも残ります。
 
+偽のパスワードを付けたコマンドを頼んでみると、確認の 2 番目の選択肢にパスワードがそのまま入っていました。
+
+![Claude Code の確認で、2 番目の選択肢にパスワードを含むルールが出ている](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/claude-code-allow-rule-secrets/permission-prompt.png)
+
 ### settings.local.json は git に入らない。でも安全とは限らない
 
 このファイルについて、ドキュメント（[Settings files and precedence](https://code.claude.com/docs/en/settings)）はこう説明しています。
@@ -130,6 +134,10 @@ Claude Code が作ったファイルなら、グローバルの git excludes に
 }
 ```
 
+ターミナルで見ると、偽の値がルールの中にそのまま入っているのが分かります。
+
+![settings.local.json の許可ルールに偽のパスワードとトークンが入っている](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/claude-code-allow-rule-secrets/settings-local.png)
+
 ```json:demo-app/.mcp.json
 {
   "mcpServers": {
@@ -152,6 +160,10 @@ $ npx github:OTA-EITA/agent-config-audit .
 
 2 file(s), 3 finding(s): 3 high, 0 medium, 0 low
 ```
+
+実際に実行した画面です。終了コードは 1 になります。
+
+![agent-config-audit の出力。値は先頭 4 文字と長さだけが出ている](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/claude-code-allow-rule-secrets/audit-output.png)
 
 値は先頭 4 文字と長さだけを出して、残りは伏せています。ターミナルのログや CI の画面に秘密情報を出し直さないためです。
 
