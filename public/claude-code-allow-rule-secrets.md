@@ -1,5 +1,7 @@
 ---
-title: Claude Code で「Yes, and don't ask again」を選んだコマンドのパスワードは設定ファイルに残る。自分のマシンを調べたら 74 件あった
+title: >-
+  Claude Code で「Yes, and don't ask again」を選んだコマンドのパスワードは設定ファイルに残る。自分のマシンを調べたら 74
+  件あった
 tags:
   - ClaudeCode
   - Security
@@ -7,8 +9,8 @@ tags:
   - MCP
   - SRE
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-10-27T11:06:19+09:00'
+id: 065e4b9c19785fd42d90
 organization_url_name: null
 slide: false
 ignorePublish: false
