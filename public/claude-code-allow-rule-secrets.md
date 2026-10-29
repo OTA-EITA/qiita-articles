@@ -33,7 +33,7 @@ Claude Code にデータベースを見てもらっていると、`PGPASSWORD='�
 同じ問題は、すでに何度か指摘されています。
 
 - Lakera の [Your AI Coding Assistant Just Shipped Your API Keys](https://web.archive.org/web/20260516182335/https://www.lakera.ai/blog/your-ai-coding-assistant-just-shipped-your-api-keys)（2026 年 4 月 22 日）は、npm に公開されたパッケージを監視して、約 46,500 件のうち 428 件に `.claude/settings.local.json` が入っており、そのうち 30 パッケージの 33 ファイルに認証情報が含まれていたと報告しています。仕組みの説明もこの記事と同じです（元の URL は 2026 年 10 月現在 404 になっているので、アーカイブを載せています）
-- GitGuardian の [The State of Secrets Sprawl 2026](https://gitguardian.com/state-of-secrets-sprawl-report-2026) は、公開 GitHub 上の MCP の設定ファイルから 24,008 件の秘密情報が見つかり、その 14% が PostgreSQL の接続文字列だったとしています
+- GitGuardian の [The State of Secrets Sprawl 2026](https://gitguardian.com/state-of-secrets-sprawl-report-2026) は、MCP の設定ファイルから重複を除いて 24,008 件の秘密情報が見つかり、その 14% が PostgreSQL の接続文字列だったとしています
 - Hush Security の調査（[Help Net Security の記事](https://www.helpnetsecurity.com/2026/09/18/hush-security-mcp-credential-exposure-report/)）は、公開 GitHub の MCP 設定ファイル約 82,000 件を調べ、認証情報を書く欄の 12% に値が直接書かれていたこと、7,681 件の履歴を見たところ 243 件で「今のファイルからは消えているが過去のコミットには残っている」状態だったことを報告しています
 
 どれも「公開された場所」を外から数えた調査です。この記事では逆に、ふだん使っている 1 台のマシンの中を見て、どのファイルにどれくらい溜まっていたか、どう片付けたかを書きます。
@@ -211,7 +211,7 @@ cp -p "$f" "$f.bak"
 jq --arg re "$PAT" '.permissions.allow |= map(select(test($re) | not))' "$f.bak" > "$f"
 ```
 
-偽のプロジェクトで試すと、`npm test` と `git status` の 2 件だけが残り、ツールの検出も 0 件になりました。バックアップにはもちろん元の値が残っているので、動作を確認したら消します。
+偽のプロジェクトで試すと、`npm test` と `git status` の 2 件だけが残り、`settings.local.json` についてのツールの検出も 0 件になりました（`.mcp.json` の 1 件はこの手順では消えないので残ります）。バックアップにはもちろん元の値が残っているので、動作を確認したら消します。
 
 `~/.claude.json` の MCP の API キーは、今も使っているサーバーのものなので、その場では消していません。ローテーションと、次の項目のように環境変数を参照する形への切り替えが残っています。
 
@@ -252,10 +252,10 @@ MCP サーバーの設定は、値を直接書かずに環境変数を参照し�
 
 ## 次から入らないようにすること
 
-- **「don't ask again」を選ぶ前に、コマンドに秘密情報が入っていないか見る。** 入っていたら「Yes」で 1 回だけ通して、あとで上の形に直します
-- **dotfiles や設定を人に渡す前に検査する。** `npx github:OTA-EITA/agent-config-audit --home` で、`~/.claude/settings.json` や `~/.claude.json` も含めて見られます
-- **npm に公開するパッケージでは `npm pack --dry-run` で中身を確認する。** `.npmignore` に `.claude/` を入れておくと安心です（Lakera の記事の対策と同じです）
-- **共有する設定ファイルは CI で検査する。**
+- 「don't ask again」を選ぶ前に、コマンドに秘密情報が入っていないか見る。入っていたら「Yes」で 1 回だけ通して、あとで上の形に直します
+- dotfiles や設定を人に渡す前に検査する。`npx github:OTA-EITA/agent-config-audit --home` で、`~/.claude/settings.json` や `~/.claude.json` も含めて見られます
+- npm に公開するパッケージでは `npm pack --dry-run` で中身を確認する。`.npmignore` に `.claude/` を入れておくと安心です（Lakera の記事の対策と同じです）
+- 共有する設定ファイルは CI で検査する
 
 CI では、リポジトリにコミットされる `.claude/settings.json` や `.mcp.json` を見ます。GitHub Actions なら次のように書けます。
 
@@ -299,7 +299,7 @@ Claude Code に限らず、エージェントの設定ファイルは「設定�
 - [Settings files and precedence（Claude Code Docs）](https://code.claude.com/docs/en/settings)
 - [Connect Claude Code to tools via MCP（Claude Code Docs）](https://code.claude.com/docs/en/mcp)
 - [Your AI Coding Assistant Just Shipped Your API Keys（Lakera、アーカイブ）](https://web.archive.org/web/20260516182335/https://www.lakera.ai/blog/your-ai-coding-assistant-just-shipped-your-api-keys)
-- [The State of Secrets Sprawl Report 2026（GitGuardian）](https://gitguardian.com/state-of-secrets-sprawl-report-2026)
+- [The State of Secrets Sprawl 2026（GitGuardian）](https://gitguardian.com/state-of-secrets-sprawl-report-2026)
 - [Hardcoded MCP credentials found in public GitHub files（Help Net Security）](https://www.helpnetsecurity.com/2026/09/18/hush-security-mcp-credential-exposure-report/)
 - [PostgreSQL: Environment Variables](https://www.postgresql.org/docs/current/libpq-envars.html) / [The Password File](https://www.postgresql.org/docs/current/libpq-pgpass.html)
 - [agent-config-audit](https://github.com/OTA-EITA/agent-config-audit)（筆者が作ったツールです）
