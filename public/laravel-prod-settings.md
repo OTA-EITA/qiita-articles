@@ -1,18 +1,19 @@
 ---
-title: >-
-  Laravel 13 の APP_DEBUG=true のエラーページは何を見せるか。CORS・プロキシ・Telescope と合わせて動かして確かめた
+title: Laravel 13 の APP_DEBUG=true のエラーページは何を見せるか。CORS・プロキシ・Telescope と合わせて動かして確かめた
 tags:
   - Laravel
   - PHP
-  - セキュリティ
+  - Security
   - SRE
   - CORS
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-10-29T23:54:28+09:00'
+id: b2340a58e926db2458a2
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## きっかけ

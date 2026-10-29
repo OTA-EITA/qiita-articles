@@ -9,7 +9,7 @@ tags:
   - nginx
   - SRE
 private: true
-updated_at: '2026-10-29T23:49:11+09:00'
+updated_at: '2026-10-29T23:54:27+09:00'
 id: dafc5a36d0583079ae90
 organization_url_name: null
 slide: false
