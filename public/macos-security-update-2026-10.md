@@ -1,18 +1,19 @@
 ---
-title: >-
-  2026年10月26日の macOS セキュリティアップデート（27.2・26.7.2・15.8.2）を Apple の一次情報で読む。更新手順つき
+title: 2026年10月26日の macOS セキュリティアップデート（27.2・26.7.2・15.8.2）を Apple の一次情報で読む。更新手順つき
 tags:
   - macOS
   - Mac
-  - セキュリティ
+  - Security
   - 脆弱性
   - SRE
 private: false
-updated_at: ''
-id: null
+updated_at: '2026-10-29T23:59:17+09:00'
+id: 71352b19ee451bb2feea
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## 先に結論
