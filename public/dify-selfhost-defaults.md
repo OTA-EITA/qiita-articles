@@ -1,18 +1,19 @@
 ---
-title: >-
-  Dify を .env.example のままセルフホストすると何が残るか。1.17.1 を実際に起動して確かめた
+title: Dify を .env.example のままセルフホストすると何が残るか。1.17.1 を実際に起動して確かめた
 tags:
   - Dify
   - Docker
-  - セキュリティ
+  - Security
   - SRE
   - Go
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-10-29T22:47:34+09:00'
+id: 2ada1ea993e5911efae2
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## きっかけ
