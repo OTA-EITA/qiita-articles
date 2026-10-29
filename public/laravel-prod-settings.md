@@ -12,7 +12,7 @@ updated_at: ''
 id: null
 organization_url_name: null
 slide: false
-ignorePublish: true
+ignorePublish: false
 ---
 
 ## きっかけ
@@ -73,7 +73,7 @@ curl -X POST http://127.0.0.1:8000/lab/fail \
 
 ![Laravel 13 のエラーページ。Queries にバインド値を埋め込んだ SQL、Headers に Cookie と Authorization、Body に password がそのまま出ている](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/laravel-prod-settings/debug-page.png)
 
-ソースを読むと、そのとおりの作りです（[Exception.php L213-233、L274-295](https://github.com/laravel/framework/blob/v13.39.0/src/Illuminate/Foundation/Exceptions/Renderer/Exception.php#L213-L295)）。
+ソースを読むと、そのとおりの作りです（[Exception.php L213-293](https://github.com/laravel/framework/blob/v13.39.0/src/Illuminate/Foundation/Exceptions/Renderer/Exception.php#L213-L293)）。
 
 - ヘッダーは `$request->headers->all()` をそのまま並べる
 - 本文は `$request->all()` をそのまま JSON にする
@@ -102,7 +102,9 @@ Laravel 13 の skeleton には `config/cors.php` がなく、framework の既定
 | 既定 | `*` | なし |
 | `allowed_origins ['*']` + `supports_credentials true` | `https://evil.example` | `true` |
 
-ブラウザは `*` と credentials の組み合わせを受け付けません。そのため、`supports_credentials` を `true` にしたとき、Laravel が使っている fruitcake/php-cors は、**送られてきた Origin をそのまま返します**（[CorsService.php L204-219](https://github.com/fruitcake/php-cors/blob/v1.4.0/src/CorsService.php#L204-L219)）。どのサイトからでも、ログイン中のユーザーの cookie 付きでレスポンスを読めます。
+ブラウザは `*` と credentials の組み合わせを受け付けません。そのため、`supports_credentials` を `true` にしたとき、Laravel が使っている fruitcake/php-cors は、**送られてきた Origin をそのまま返します**（[CorsService.php L204-219](https://github.com/fruitcake/php-cors/blob/v1.4.0/src/CorsService.php#L204-L219)）。CORS としては、どのオリジンにも cookie 付きのレスポンスを読ませる設定です。
+
+実際に cookie が付くかは、cookie の `SameSite` で決まります。Laravel のセッション cookie は既定で `SameSite=Lax` なので、まったく別のサイトからの `fetch` には付きません。一方、同じサイトの別オリジン（ほかのサブドメインなど）からのリクエストには付きます。`SESSION_SAME_SITE=none` にしていれば、別のサイトからでも付きます。
 
 SPA のために「とりあえず credentials を有効にする」と、ここに当たります。`allowed_origins` に自分のフロントエンドのオリジンだけを書いてください。
 
@@ -123,7 +125,7 @@ Laravel 11 以降は、`bootstrap/app.php` で信頼するプロキシを決め�
 | 既定（何も書かない） | `127.0.0.1` | false | `127.0.0.1` |
 | `trustProxies(at: '*')` | `203.0.113.9` | true | `evil.example` |
 
-`*` は「直前の接続元を信頼する」という意味です。ロードバランサーの後ろにしか置かないなら問題ありません。ただ、アプリのポートに直接つなげる経路が残っていると、クライアントが IP アドレスとホスト名を自由に名乗れます。レート制限や監査ログの IP、メールのリンクに使う URL が、その値になります。
+`*` を指定すると、信頼するプロキシが `0.0.0.0/0` と `::/0`、つまりすべてのアドレスになります（[TrustProxies.php L84-86、L121-124](https://github.com/laravel/framework/blob/v13.39.0/src/Illuminate/Http/Middleware/TrustProxies.php#L84-L124)）。ロードバランサーの後ろにしか置かないなら問題ありません。ただ、アプリのポートに直接つなげる経路が残っていると、クライアントが IP アドレスとホスト名を自由に名乗れます。レート制限や監査ログの IP、メールのリンクに使う URL が、その値になります。
 
 ## Telescope と APP_ENV=local
 
