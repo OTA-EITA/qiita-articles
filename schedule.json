@@ -5,7 +5,6 @@
   "claude-code-allow-rule-secrets.md": "2026-11-09T08:00:00+09:00",
   "bundler-cooldown-lockfile.md": "2026-11-11T08:00:00+09:00",
   "aurora-mysql-audit-log.md": "2026-11-13T08:00:00+09:00",
-  "http-query-method-proxies.md": "2026-10-30T08:00:00+09:00",
   "dify-selfhost-defaults.md": "2026-11-02T08:00:00+09:00",
   "laravel-prod-settings.md": "2026-11-04T08:00:00+09:00"
 }
