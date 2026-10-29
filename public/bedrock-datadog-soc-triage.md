@@ -35,8 +35,8 @@ agreed_posting_campaign_term: false
 セキュリティのアラートに絞ると、次のようなものがあります。
 
 - ys_nishida さんの「[Claude Tag+Amazon GuardDuty Investigation Agentでセキュリティアラートの一次トリアージを自動化](https://zenn.dev/dgtech/articles/20260811-secalert-triage)」。GuardDuty の検出結果が対象で、通知の本文を信用せず、検出結果の ID とリージョンだけを受け取って API で事実を確かめる、という指示を入れているのが参考になりました
-- かまたまさんの「[Security Hub の大量アラートのトリアージをAI Agent Skillで仕組み化した話](https://zenn.dev/peoplex_blog/articles/fa8919d34c3fea)」。Security Hub の検出結果に対して対応案を出し、最後は人が決める形です
-- Halodoc の「[Automating SOC Alert Triage with Amazon Bedrock Agents](https://blogs.halodoc.io/from-siem-alerts-to-action-building-an-ai-powered-soc-with-amazon-bedrock-agents/)」。OpenSearch ベースの SIEM と Bedrock Agents の組み合わせで、条件を満たす低リスクの誤検知は自動でクローズし、それを人が抜き取りで確認する運用です
+- かまたまさんの「[Security Hub の大量アラートのトリアージをAI Agent Skillで仕組み化した話](https://zenn.dev/peoplex_blog/articles/fa8919d34c3fea)」。古いコンテナイメージに対する ECR スキャンの検出結果はまとめて `RESOLVED` にし、残った Security Hub の検出結果に対応案を出して、最後は人が決める形です
+- Halodoc の「[From SIEM Alerts to Action: Building an AI-Powered SOC with Amazon Bedrock Agents](https://blogs.halodoc.io/from-siem-alerts-to-action-building-an-ai-powered-soc-with-amazon-bedrock-agents/)」。OpenSearch ベースの SIEM と Bedrock Agents の組み合わせで、条件を満たす低リスクの誤検知は自動でクローズし、それを人が抜き取りで確認する運用です
 - Slack の「[Streamlining Security Investigations with Agents](https://slack.engineering/streamlining-security-investigations-with-agents/)」。複数のエージェントで調査を分担させる、もっと大がかりな例です
 - AWS のブログにも、GuardDuty の検出結果を Bedrock で要約して通知する「[Automate cloud security vulnerability assessment and alerting using Amazon Bedrock](https://aws.amazon.com/blogs/machine-learning/automate-cloud-security-vulnerability-assessment-and-alerting-using-amazon-bedrock/)」や、「[How Reco transforms security alerts using Amazon Bedrock](https://aws.amazon.com/blogs/machine-learning/how-reco-transforms-security-alerts-using-amazon-bedrock/)」があります
 
@@ -265,7 +265,7 @@ def triage(alert: dict, context: dict) -> dict:
 
 この例のスキーマで意識したのは 2 つです。1 つは、`verdict` に `unknown` を用意して「分からない」と言える逃げ道を作ったことです。二択にすると、根拠が薄くてもどちらかに寄せた答えが返ってきます。もう 1 つは、モデル自身が申告する確信度（0.9 など）を入れていないことです。もっともらしい数字が付くと、人がそれを見て判断を省きたくなるので、代わりに根拠のログを `evidence` に書かせて、人がそれを開いて確かめる形にしています。
 
-なお、structured outputs は新しいスキーマを初めて使うときに文法のコンパイルが走り、最大で 90 秒ほどかかることがあるとドキュメントに書かれています。コンパイル結果は 24 時間キャッシュされます。Webhook の 15 秒のタイムアウトの中で同期的に呼ばないほうがいい理由がここにもあります。
+なお、structured outputs は新しいスキーマを初めて使うときに文法のコンパイルが走り、最大で 90 秒ほどかかることがあるとドキュメントに書かれています。コンパイル結果は 24 時間キャッシュされます。ドキュメントでは、初回でタイムアウトしないようにクライアントの読み取りタイムアウトを 120 秒以上にするよう勧めています。boto3 の既定の読み取りタイムアウトは 60 秒なので、`botocore.config.Config(read_timeout=...)` で延ばしておく必要があります。Webhook の 15 秒のタイムアウトの中で同期的に呼ばないほうがいい理由がここにもあります。
 
 ## よかったこと
 
@@ -346,7 +346,7 @@ Bedrock を選んだ理由の 1 つは、データが AWS の中で処理され�
 
 ただ、2026 年 10 月現在、この話にはいくつか補足が必要です。
 
-1 つ目は、データの保持です。Bedrock にはデータ保持のモードがあり、モデルによっては、不正利用の検出のために入力と出力が AWS の中で最大 30 日保持され、AWS が確認することがあります。たとえば Claude Fable 5 と Claude Fable 5.1 は、すべてのトラフィックが最大 30 日保持される対象になっています（[Data retention](https://docs.aws.amazon.com/bedrock/latest/userguide/data-retention.html)、[Amazon Bedrock abuse detection](https://docs.aws.amazon.com/bedrock/latest/userguide/abuse-detection.html)）。保持されたデータもモデルの提供元には共有されませんが、「どこにも残らない」わけではないモデルがあるということです。どのモデルを使うかで扱いが変わるので、選ぶときに確認が要ります。
+1 つ目は、データの保持です。Bedrock にはデータ保持のモードがあり、モデルによっては、不正利用の検出のために入力と出力が AWS の中で最大 30 日保持され、AWS が確認することがあります。たとえば Claude Fable 5 と Claude Fable 5.1 は、すべてのトラフィックが最大 30 日保持される対象で、分類器に引っかかったものは AWS の人によるレビューの対象になります。これらのモデルは、アカウントのデータ保持モードを `aws_review` にしないと呼び出せません（[Data retention](https://docs.aws.amazon.com/bedrock/latest/userguide/data-retention.html)、[Amazon Bedrock abuse detection](https://docs.aws.amazon.com/bedrock/latest/userguide/abuse-detection.html)）。保持されたデータもモデルの提供元には共有されませんが、「どこにも残らない」わけではないモデルがあるということです。どのモデルを使うかで扱いが変わるので、選ぶときに確認が要ります。
 
 2 つ目は、クロスリージョン推論です。推論プロファイルを使うと、リクエストが別のリージョンで処理されることがあります。地理的な範囲を限定するプロファイルと、全世界のリージョンに振り分けるグローバルなプロファイルがあり、ドキュメントでもデータの所在地に要件があるなら前者を選ぶように書かれています（[cross-Region inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html)）。
 
@@ -373,7 +373,7 @@ SOC のアラートで効いてくるのは、たいてい入力のほうだと�
 - [Datadog アラートを AI が即時解析して Slack に通知する仕組みを Lambda + Bedrock で作った（komachan）](https://zenn.dev/komachan333/articles/3a63edae4e29f6)
 - [Claude Tag+Amazon GuardDuty Investigation Agentでセキュリティアラートの一次トリアージを自動化（ys_nishida）](https://zenn.dev/dgtech/articles/20260811-secalert-triage)
 - [Security Hub の大量アラートのトリアージをAI Agent Skillで仕組み化した話（かまたま）](https://zenn.dev/peoplex_blog/articles/fa8919d34c3fea)
-- [Automating SOC Alert Triage with Amazon Bedrock Agents（Halodoc）](https://blogs.halodoc.io/from-siem-alerts-to-action-building-an-ai-powered-soc-with-amazon-bedrock-agents/)
+- [From SIEM Alerts to Action: Building an AI-Powered SOC with Amazon Bedrock Agents（Halodoc）](https://blogs.halodoc.io/from-siem-alerts-to-action-building-an-ai-powered-soc-with-amazon-bedrock-agents/)
 - [Streamlining Security Investigations with Agents（Slack Engineering）](https://slack.engineering/streamlining-security-investigations-with-agents/)
 - [Automate cloud security vulnerability assessment and alerting using Amazon Bedrock（AWS）](https://aws.amazon.com/blogs/machine-learning/automate-cloud-security-vulnerability-assessment-and-alerting-using-amazon-bedrock/)
 - [How Reco transforms security alerts using Amazon Bedrock（AWS）](https://aws.amazon.com/blogs/machine-learning/how-reco-transforms-security-alerts-using-amazon-bedrock/)
