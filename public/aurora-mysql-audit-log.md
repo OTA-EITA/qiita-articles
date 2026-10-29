@@ -63,7 +63,7 @@ agreed_posting_campaign_term: false
 
 ## 全体の構成
 
-全体の形はこうです。DB 側は CloudWatch Logs を経由するしかないので（後述）、サブスクリプションフィルターから Firehose で S3 に流します。OS 側はエージェントが `audit.log` を tail して、S3 に直接置きます。
+全体の形はこうです。DB 側はインスタンスのログファイルを API で 1 つずつ落とすこともできますが、続けて集めるなら CloudWatch Logs を経由するのが現実的なので（後述）、サブスクリプションフィルターから Firehose で S3 に流します。OS 側はエージェントが `audit.log` を tail して、S3 に直接置きます。
 
 ```mermaid
 flowchart LR
@@ -132,13 +132,13 @@ DB クラスターのパラメータグループで設定します（2026 年 10
 
 ### CloudWatch Logs への出力
 
-クラスターの「ログのエクスポート」で監査ログにチェックを入れます。CLI なら `aws rds modify-db-cluster --cloudwatch-logs-export-configuration '{"EnableLogTypes":["audit"]}'`、Terraform なら `aws_rds_cluster` の `enabled_cloudwatch_logs_exports = ["audit"]` です。
+クラスターの「ログのエクスポート」で監査ログにチェックを入れます。CLI なら `aws rds modify-db-cluster --db-cluster-identifier app-db --cloudwatch-logs-export-configuration '{"EnableLogTypes":["audit"]}'`、Terraform なら `aws_rds_cluster` の `enabled_cloudwatch_logs_exports = ["audit"]` です。
 
 出力先は `/aws/rds/cluster/<クラスター名>/audit` というロググループで、クラスター内の全インスタンスのログがインスタンスごとのログストリームに入ります。ロググループがなければ Aurora が自動で作りますが、そのときの保持期間は「失効しない（Never Expire）」です。保持期間を決めたいなら、先に自分でロググループを作っておくほうが確実です（Terraform の例は後で載せます）。
 
 ### Database Activity Streams という選択肢
 
-Aurora には Database Activity Streams もあります。Kinesis Data Streams に JSON で流れてくるので後段の加工は楽ですが、Aurora MySQL では非同期モードしか使えず、使えるインスタンスクラスも `db.r5` 以降の large 以上などに限られます（t 系は対象外。2026 年 10 月現在、[Monitoring Amazon Aurora with Database Activity Streams](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/DBActivityStreams.html)）。KMS キーと Kinesis の料金もかかります。小さいインスタンスクラスの環境も同じ仕組みで扱いたいなら、Advanced Auditing と CloudWatch Logs の組み合わせのほうが無理がありません。
+Aurora には Database Activity Streams もあります。Kinesis Data Streams に JSON で流れてくるので後段の加工は楽ですが（レコードは KMS で暗号化されているので、読む側で復号は要ります）、Aurora MySQL では非同期モードしか使えず、使えるインスタンスクラスも `db.r5` 以降の large 以上などに限られます（t 系は対象外。2026 年 10 月現在、[Monitoring Amazon Aurora with Database Activity Streams](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/DBActivityStreams.html)）。KMS キーと Kinesis の料金もかかります。小さいインスタンスクラスの環境も同じ仕組みで扱いたいなら、Advanced Auditing と CloudWatch Logs の組み合わせのほうが無理がありません。
 
 ## OS 側: auditd
 
@@ -215,7 +215,7 @@ auditd の量は、ルールとサーバーの使われ方で桁が変わるの�
 
 ### 料金の構造（試算）
 
-効いてくるのは CloudWatch Logs の取り込み料です。東京リージョンの公開価格（2026 年 10 月現在）で、生ログが 1 日 1 GB と**仮定**した場合を試算しました。1 GB は計算しやすい丸めた値で、特定の環境の実測値ではありません。料金はほぼ量に比例するので、自分の環境の量に合わせて読み替えてください。
+効いてくるのは CloudWatch Logs の取り込み料です。東京リージョンの公開価格（2026 年 10 月現在）で、生ログが 1 日 1 GB と仮定した場合を試算しました。1 GB は計算しやすい丸めた値で、特定の環境の実測値ではありません。料金はほぼ量に比例するので、自分の環境の量に合わせて読み替えてください。
 
 ![監査ログの経路ごとの月額の試算](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/aurora-audit-log/cost-estimate.png)
 
@@ -225,7 +225,7 @@ auditd の量は、ルールとサーバーの使われ方で桁が変わるの�
 | Aurora → CloudWatch Logs（1 日保持）→ Firehose → S3 | 約 $22.8 | 約 $0.03 | 約 $1.2 | 約 $1.8 | 約 $25.9 |
 | EC2 → エージェント → S3 直接 | - | - | - | 約 $1.8 | 約 $1.8 |
 
-使った単価は、CloudWatch Logs の取り込みが $0.76/GB（Standard クラス）、保管が $0.033/GB-月、Firehose の取り込みが $0.036/GB、CloudWatch Logs の展開が $0.00403/GB、S3 Standard が $0.025/GB-月、PUT が 1,000 件あたり $0.0047 です（AWS の Price List API の東京リージョンの値）。CloudWatch Logs の保管は圧縮前のサイズで計算しているので上限寄りです。保持期間の 90 日と 1 日も比較のための仮定です。S3 は gzip で 1/10、2 年保持の定常状態、Firehose もエージェントも 5 分ごとに 1 ファイルを置くと仮定しています。無料枠と Athena のスキャン料は入れていません。
+使った単価は、CloudWatch Logs の取り込みが $0.76/GB（Standard クラス）、保管が $0.033/GB-月、Firehose の取り込みが $0.036/GB、CloudWatch Logs の展開が $0.00403/GB、S3 Standard が $0.025/GB-月、PUT が 1,000 件あたり $0.0047 です（AWS の Price List API の東京リージョンの値）。CloudWatch Logs の保管は圧縮前のサイズで計算しているので上限寄りです。Firehose も、展開前と展開後をどちらも 30 GB/月とし、レコードごとの 5 KB 単位の切り上げは入れていません。保持期間の 90 日と 1 日も比較のための仮定です。S3 は gzip で 1/10、2 年保持の定常状態、Firehose もエージェントも 5 分ごとに 1 ファイルを置くと仮定しています。無料枠と Athena のスキャン料は入れていません。
 
 CloudWatch Logs の料金ページで、段階料金が適用される Vended Logs として挙がっているのは WAF や CloudFront などで、RDS のログは見当たらなかったので、ここでは通常の取り込み料で計算しています。
 
@@ -299,7 +299,7 @@ aws rds describe-db-cluster-parameters \
 
 - 症状: エクスポートタスクは「いつからいつまで」を指定して 1 回動くだけ。日付ごとのパーティションも自分で作る必要がある
 - 原因: エクスポートタスクはそういう作りです。定期的に回すなら、EventBridge から Lambda でタスクを作る方法になります（前述の AWS Database Blog の 1 つ目の方法）
-- 対処: 自分は Lambda を持ちたくなかったので、サブスクリプションフィルターから Firehose に流す方法にしました。S3 のプレフィックスに `year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/` を書けば、Firehose が到着時刻で日付ごとに分けてくれます
+- 対処: 自分は Lambda を持ちたくなかったので、サブスクリプションフィルターから Firehose に流す方法にしました。S3 のプレフィックスに `year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/` を書けば、Firehose が到着時刻で日付ごとに分けてくれます（既定は UTC で、タイムゾーンは変更できます）
 
 Firehose の作成画面には「動的パーティショニング」もあり、これは新規作成時にしか有効にできない、と表示されます。ただ、日付で分けるだけならタイムスタンプのプレフィックスで足ります。時間単位のパーティションも検討しましたが、監査ログを時間単位で絞り込む場面は少ないので、日単位にしました。
 
@@ -309,7 +309,7 @@ Firehose の作成画面には「動的パーティショニング」もあり�
 - 原因: CloudWatch Logs のサブスクリプションフィルターから届くデータは gzip で圧縮されていて、中身は `logEvents` 配列に複数のイベントをまとめた JSON です。`CONTROL_MESSAGE` は宛先に届くかを確かめるためのメッセージです（[Log group-level subscription filters](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/SubscriptionFilters.html)）
 - 対処: Firehose の「CloudWatch Logs からのソースレコードを展開」と「メッセージ抽出」を有効にし、改行の区切りを付けます。メッセージ抽出を有効にすると、`owner` や `logGroup` などのメタデータが取り除かれ、`message` の中身だけが届きます（[Extract message after decompression of CloudWatch Logs](https://docs.aws.amazon.com/firehose/latest/dev/Message_extraction.html)）。設定を変えたら、改めて S3 に届いたファイルを開いて確認します
 
-Terraform で書くと次のようになるはずです。プロセッサーの種類とパラメータ名は Terraform AWS プロバイダーのドキュメントで確認しましたが、このブロックそのものを実環境に適用して確かめたわけではないので、`plan` と実際に届いたファイルで確かめてください。展開を有効にしたストリームは CloudWatch Logs のサブスクリプション専用にするように、とも書かれています。
+Terraform で書くと次のようになるはずです。プロセッサーの種類とパラメータ名は Terraform AWS プロバイダーのドキュメントで確認しましたが、このブロックそのものを実環境に適用して確かめたわけではないので、`plan` と実際に届いたファイルで確かめてください。なお Firehose のドキュメントには、展開を有効にしたストリームは CloudWatch Logs のサブスクリプションフィルター専用にし、Vended Logs と混ぜないように、と書かれています（[Decompress CloudWatch Logs](https://docs.aws.amazon.com/firehose/latest/dev/writing-with-cloudwatch-logs-decompression.html)）。
 
 ```hcl
 processing_configuration {
@@ -370,7 +370,7 @@ resource "aws_cloudwatch_log_subscription_filter" "rds_audit" {
 
 - 症状: `FAILED: ParseException line ...: cannot recognize input near 'database' 'STRING' ',' in column specification`
 - 原因: 監査ログの列名どおりに `database` と書いたが、Athena の DDL では予約語です（[Reserved keywords](https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html)）
-- 対処: DDL ではバッククォートで囲みます。`SELECT` で参照するときはダブルクォートです
+- 対処: DDL ではバッククォートで囲みます。`SELECT` 文の予約語の一覧には `database` は入っていないので、`SELECT` ではそのまま書けます（`SELECT` 側の予約語を列名に使うときはダブルクォートで囲みます）
 
 パーティションは、パーティション射影（partition projection）にしておくと `MSCK REPAIR TABLE` やパーティションの追加が要りません。
 
@@ -498,7 +498,7 @@ There was an error while processing parameters
 #### 13. Athena のパースが急に崩れた
 
 - 症状: Athena のクエリが急に動かなくなった。以前は `type=` で始まっていた行が、`node=<ホスト名> type=...` で始まるようになっていた
-- 原因: `auditd.conf` の `name_format` が `NONE` から `HOSTNAME` に変わっていた、というパターンです。`auditd.conf(5)` のとおり、`NONE` 以外ではホスト名がイベントに入ります。コンテナで変えると、行頭に `node=` が付きました
+- 原因: `auditd.conf` の `name_format` が `NONE` から `HOSTNAME` に変わっていた、というパターンです。`auditd.conf(5)` のとおり、`NONE` 以外ではホスト名などのノード名がイベントに入ります。コンテナで変えると、行頭に `node=` が付きました
 
 ```text
 node=<hostname> type=PROCTITLE msg=audit(1793108960.885:81): proctitle=2F7573722F62696E2F...
