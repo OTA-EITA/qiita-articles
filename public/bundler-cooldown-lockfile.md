@@ -58,7 +58,7 @@ Only consider gem versions published at least N days ago. Use 0 to disable.
 - この時点の rubocop は 1.92.1（10 月 22 日公開、4 日前）、その前が 1.92.0（10 月 10 日公開）
 - 依存の parser も 3.3.13.0（10 月 23 日公開、3 日前）が出たばかりで、その前は 3.3.12.0（7 月 16 日公開）
 
-日付は rubygems.org の `https://rubygems.org/api/v1/versions/<gem>.json` で確認しました。
+日付は rubygems.org の `https://rubygems.org/api/v1/versions/<gem>.json` で確認しました（UTC）。
 
 図にすると、rubocop 1.92.1 と parser 3.3.13.0 が 7 日の範囲に入っています。
 
@@ -281,9 +281,9 @@ bundle update rubocop parser --conservative
 RubyGems で実際にあった乗っ取りを 2 件見てみます。
 
 - rest-client（2019 年 8 月）：メンテナのアカウントが乗っ取られ、バックドア入りの 1.6.10〜1.6.13 が 8 月 13〜14 日に公開されました。8 月 19 日に報告され、同じ日に削除されています（CVE-2019-15224）。公開から 5〜6 日です
-- strong_password（2019 年）：乗っ取られたアカウントから 0.0.7 が 6 月 25 日に公開されました。見つけた Tute Costa さんの記事は 7 月 3 日付で、報告の翌日に削除されたと書かれています（CVE-2019-13354）。1 週間以上残っていたことになります
+- strong_password（2019 年）：乗っ取られたアカウントから 0.0.7 が 6 月 25 日に公開されました（メンテナの説明による）。見つけた Tute Costa さんの記事（7 月 3 日付）によると、6 月 28 日に Rails のセキュリティ担当経由で RubyGems に報告し、すぐに削除されています（CVE-2019-13354）。公開から 3〜4 日です
 
-rest-client は 7 日で防げた計算ですが、strong_password は 7 日では足りませんでした。strong_password は、Costa さんが依存を上げる前に差分を見ていて、GitHub に存在しないリリースだと気づいたのがきっかけです。クールダウンは見つけてもらうまでの時間を稼ぐもので、その間に誰かが見ていることが前提だということも覚えておきたいところです。
+どちらも 7 日あれば、削除が間に合っていた計算です。ただ、strong_password は、Costa さんが依存を上げる前に差分を見ていて、GitHub に存在しないリリースだと気づいたのがきっかけです。クールダウンは見つけてもらうまでの時間を稼ぐもので、その間に誰かが見ていることが前提だということも覚えておきたいところです。
 
 ## おわりに
 
@@ -301,6 +301,6 @@ lockfile は、設定のない環境、古い Bundler、ボットなど、いろ
 - [Ruby's Bundler adds a cooldown feature（LWN.net）](https://lwn.net/Articles/1076526/)
 - [min-release-age(cooldown)の設定メモ（@minamijoyo）](https://qiita.com/minamijoyo/items/d43f3be079d518c340ce)：npm などと並べて `BUNDLE_COOLDOWN` の設定を紹介
 - [Package managers need to cool down（Andrew Nesbitt）](https://nesbitt.io/2026/03/04/package-managers-need-to-cool-down)
-- [Dependabot options reference: cooldown（GitHub Docs）](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference)
+- [Dependabot options reference: cooldown（GitHub Docs）](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference)
 - [Version 1.6.13 published with malicious backdoor（rest-client/rest-client#713）](https://github.com/rest-client/rest-client/issues/713)
 - [strong_password v0.0.7 rubygem hijacked（Tute Costa）](https://withatwist.dev/strong-password-rubygem-hijacked.html)
