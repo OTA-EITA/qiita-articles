@@ -1,17 +1,21 @@
 ---
-title: HTTP の QUERY メソッド（RFC 10008）は WAF で止まる。HAProxy・Envoy・Traefik・Caddy・ModSecurity で試した
+title: >-
+  HTTP の QUERY メソッド（RFC 10008）は WAF で止まる。HAProxy・Envoy・Traefik・Caddy・ModSecurity
+  で試した
 tags:
   - HTTP
-  - WAF
-  - Envoy
+  - waf
+  - envoy
   - nginx
   - SRE
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-10-29T21:05:24+09:00'
+id: dafc5a36d0583079ae90
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## きっかけ
