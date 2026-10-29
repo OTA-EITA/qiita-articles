@@ -16,13 +16,15 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
-## 先に結論
+10 月 26 日に Apple から macOS の更新が出ました。件数が多いので、Apple の公開情報を読んで、何が直ったのか、どこから手を付ければよいのかを整理しました。最後に更新の手順も書いています。
 
-- 2026 年 10 月 26 日に、Apple は macOS Golden Gate 27.2、macOS Tahoe 26.7.2、macOS Sequoia 15.8.2 を公開しました。3 つを合わせて **299 件**の CVE が修正されています。
-- Apple の公開情報には、今回の修正のうち**悪用が報告されたもの（いわゆるゼロデイ）はありません**。
-- それでも、root 権限の取得、サンドボックスからの脱出、Gatekeeper の回避、リモートからのコード実行につながるものが多数含まれます。**早めに更新してください。**
-- Tahoe と Sequoia では、Safari（WebKit）の修正は **Safari 27.2** として別に配信されています。macOS と Safari の両方を更新します。
-- 9 月 28 日の更新（Tahoe 26.7.1、Sequoia 15.8.1）には、**悪用が報告された** CoreGraphics の脆弱性（CVE-2026-86950）の修正が入っていました。9 月から更新していない Mac は、こちらも未修正です。
+## 要点
+
+- 2026 年 10 月 26 日に、Apple は macOS Golden Gate 27.2、macOS Tahoe 26.7.2、macOS Sequoia 15.8.2 を公開しました。3 つを合わせて 299 件の CVE が修正されています。
+- Apple の公開情報には、今回の修正のうち、悪用が報告されたもの（いわゆるゼロデイ）はありません。
+- それでも、root 権限の取得、サンドボックスからの脱出、Gatekeeper の回避、リモートからのコード実行につながるものが多数含まれるので、早めに更新してください。
+- Tahoe と Sequoia では、Safari（WebKit）の修正は Safari 27.2 として別に配信されています。macOS と Safari の両方を更新します。
+- 9 月 28 日の更新（Tahoe 26.7.1、Sequoia 15.8.1）には、悪用が報告された CoreGraphics の脆弱性（CVE-2026-86950）の修正が入っていました。9 月から更新していない Mac は、こちらも未修正です。
 - macOS Sonoma 向けの更新は、今回出ていません。Sonoma の最後のセキュリティ更新は 8 月 6 日の 14.8.9 です。
 
 ## どこを見たか
@@ -113,7 +115,7 @@ Safari を使っていなくても、WebKit はアプリの中の Web 表示に�
 |---|---|---|
 | CoreGraphics | Processing a maliciously crafted file may lead to arbitrary code execution. Apple is aware of a report that this issue may have been exploited in an extremely sophisticated attack against specific targeted individuals on versions of iOS before iOS 27. | CVE-2026-86950 |
 
-こちらは**悪用が報告されています**。報告されている攻撃は特定の個人を狙った iOS への攻撃ですが、同じ問題が macOS にもありました。今回の 26.7.2 と 15.8.2 を入れれば、9 月の修正も含まれます。
+こちらは悪用が報告されています。報告されている攻撃は特定の個人を狙った iOS への攻撃ですが、同じ問題が macOS にもありました。今回の 26.7.2 と 15.8.2 を入れれば、9 月の修正も含まれます。
 
 ## Sonoma 以前の Mac
 
