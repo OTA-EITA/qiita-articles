@@ -7,7 +7,7 @@ tags:
   - SRE
   - LocalStack
 private: false
-updated_at: '2026-10-28T10:55:55+09:00'
+updated_at: '2026-10-30T21:29:57+09:00'
 id: ed173fb261c971c2d4c7
 organization_url_name: null
 slide: false
