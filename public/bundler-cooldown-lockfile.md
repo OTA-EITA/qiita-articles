@@ -7,7 +7,7 @@ tags:
   - Security
   - サプライチェーン攻撃
 private: true
-updated_at: '2026-10-30T21:35:04+09:00'
+updated_at: '2026-10-30T21:40:39+09:00'
 id: 07b0d2ee27ddb1138d1d
 organization_url_name: null
 slide: false
