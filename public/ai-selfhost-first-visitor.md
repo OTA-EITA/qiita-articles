@@ -1,18 +1,19 @@
 ---
-title: >-
-  n8n・Open WebUI・LiteLLM・Langflow・Flowise を公式の compose で立てて、最初に来た人が管理者になるかを確かめた
+title: n8n・Open WebUI・LiteLLM・Langflow・Flowise を公式の compose で立てて、最初に来た人が管理者になるかを確かめた
 tags:
   - n8n
   - LLM
   - Docker
-  - セキュリティ
+  - Security
   - SRE
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-10-30T16:19:04+09:00'
+id: 54cdd63922da7bd7531a
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 ## きっかけ
