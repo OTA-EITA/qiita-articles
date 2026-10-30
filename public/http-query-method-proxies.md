@@ -1,5 +1,7 @@
 ---
-title: HTTP の QUERY メソッド（RFC 10008）は OWASP CRS の初期設定で 403 になる。HAProxy・Envoy・Traefik・Caddy・nginx は通した
+title: >-
+  HTTP の QUERY メソッド（RFC 10008）は OWASP CRS の初期設定で 403
+  になる。HAProxy・Envoy・Traefik・Caddy・nginx は通した
 tags:
   - HTTP
   - waf
@@ -7,7 +9,7 @@ tags:
   - nginx
   - SRE
 private: false
-updated_at: '2026-10-30T00:02:57+09:00'
+updated_at: '2026-10-30T21:17:11+09:00'
 id: dafc5a36d0583079ae90
 organization_url_name: null
 slide: false
