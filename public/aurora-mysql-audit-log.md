@@ -1,5 +1,5 @@
 ---
-title: Aurora MySQL の監査ログと auditd のログを S3 に集めるまでにハマったこと
+title: Aurora MySQL の監査ログと auditd を S3 に集めて Athena で読むまでのハマりどころ 19 個
 tags:
   - AWS
   - Aurora
@@ -16,15 +16,15 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
-## きっかけ
+Aurora MySQL の監査ログ（Advanced Auditing）と、EC2（Amazon Linux）の auditd のログを S3 に集めて Athena で検索する基盤を作ったときに踏んだところを、19 個にまとめました。時間を使ったのは設定そのものより、「ログが来ない」「来たけど読めない」「多すぎる」の 3 つでした。一番の学びは、ロググループもエクスポート設定もあるのに `server_audit_logging` が OFF のままで、監査ログが来ていなかったことです（ハマりどころ 1）。
 
-「攻撃を受けたときに、誰が何をしたのか後から追えるようにしておく」ための監査ログの基盤を作ったことがあります。対象は 2 つで、DB 側は Aurora MySQL の監査ログ、OS 側は EC2（Amazon Linux）の auditd のログです。
+「攻撃を受けたときに、誰が何をしたのか後から追えるようにしておく」ために、Aurora MySQL や EC2 の監査ログを残そうとしている SRE やインフラ担当の人向けです。すぐ下の一覧から、症状が近い番号の項目に飛んで読んでも分かるように書いています。導入したあとに見る項目は、後半の「導入後に確かめること」にまとめました。
 
-形としては、どちらも S3 に置いて Athena で検索するものです。やってみると、設定そのものより「ログが来ない」「来たけど読めない」「多すぎる」のほうに時間を使いました。この記事は、そのとき踏んだところを設計メモとして一般化し、一次情報で原因を確かめ直した結果をまとめたものです。
+実際の構成を設計メモとして一般化し、原因は一次情報で確かめ直しています。
 
 名前や値はすべて例に置き換えています。クラスター名は `app-db`、バケット名は `example-audit-logs`、アカウント ID は `123456789012` です。数値は、ドキュメントに書かれている値か、前提を明記した試算だけを載せています。auditd の挙動は、手元の Docker（Amazon Linux 2023 のコンテナ）で再現できたものだけ実際の出力を載せています。
 
-### 既にある記事との違い
+## 既にある記事との違い
 
 個々の構成は、すでに良い記事があります。
 
@@ -37,7 +37,7 @@ agreed_posting_campaign_term: false
 
 ## ハマりどころの一覧
 
-先に一覧を置いておきます。詳しくは後半の「ハマりどころ」の節に、症状・原因・対処の順で書いています。
+先に一覧を置いておきます。大きく分けると、ログが出ていない（1、6、7、9）、出ているが読めない（5、8、13、14）、多すぎる（2、10、11）の 3 種類でした。詳しくは後半の「ハマりどころ」の節に、症状・原因・対処の順で書いています。
 
 | # | 場所 | 症状 | 原因 |
 |---|---|---|---|
@@ -205,32 +205,6 @@ session required pam_tty_audit.so disable=* enable=root,ec2-user,ssm-user
 
 auditd の代わりに、Slack の [go-audit](https://github.com/slackhq/go-audit) を使う選択肢もあります。カーネルの netlink から直接読み、JSON で出してくれるので後段は楽です。2026 年 10 月現在、リポジトリはアーカイブされておらず、2026 年 6 月に v1.2.2 が出ています。ただ auditd と同時には動かせないので、OS 標準の auditd を止めて置き換えることになります。後段の楽さを取るか、OS 標準の運用のしやすさを取るか、のトレードオフです。
 
-## ログの量とコスト
-
-### OS 側は自分の環境で測る
-
-auditd の量は、ルールとサーバーの使われ方で桁が変わるので、自分の環境で測るしかありません。測り方としては、`audit.log` のローテーションの間隔から 1 日あたりの量を出す方法と、`aureport --summary` で一定時間のイベント数と内訳を見る方法が手軽です。内訳を見ると、「失敗したシステムコール」が大きな割合を占めていることがあります（ハマりどころ 10）。ルールを見直す前後で、同じ時間幅の内訳を比べると効果が分かります。
-
-収集エージェントで JSON Lines にして gzip すると、テキストのログは圧縮がよく効くので、S3 の保管料はあまり問題になりません。
-
-### 料金の構造（試算）
-
-効いてくるのは CloudWatch Logs の取り込み料です。東京リージョンの公開価格（2026 年 10 月現在）で、生ログが 1 日 1 GB と仮定した場合を試算しました。1 GB は計算しやすい丸めた値で、特定の環境の実測値ではありません。料金はほぼ量に比例するので、自分の環境の量に合わせて読み替えてください。
-
-![監査ログの経路ごとの月額の試算](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/aurora-audit-log/cost-estimate.png)
-
-| 経路 | CloudWatch Logs 取り込み | CloudWatch Logs 保管 | Firehose（展開込み） | S3 保管・PUT | 合計（月） |
-|---|---|---|---|---|---|
-| Aurora → CloudWatch Logs（90 日保持）→ Firehose → S3 | 約 $22.8 | 約 $3.0 | 約 $1.2 | 約 $1.8 | 約 $28.8 |
-| Aurora → CloudWatch Logs（1 日保持）→ Firehose → S3 | 約 $22.8 | 約 $0.03 | 約 $1.2 | 約 $1.8 | 約 $25.9 |
-| EC2 → エージェント → S3 直接 | - | - | - | 約 $1.8 | 約 $1.8 |
-
-使った単価は、CloudWatch Logs の取り込みが $0.76/GB（Standard クラス）、保管が $0.033/GB-月、Firehose の取り込みが $0.036/GB、CloudWatch Logs の展開が $0.00403/GB、S3 Standard が $0.025/GB-月、PUT が 1,000 件あたり $0.0047 です（AWS の Price List API の東京リージョンの値）。CloudWatch Logs の保管は圧縮前のサイズで計算しているので上限寄りです。Firehose も、展開前と展開後をどちらも 30 GB/月とし、レコードごとの 5 KB 単位の切り上げは入れていません。保持期間の 90 日と 1 日も比較のための仮定です。S3 は gzip で 1/10、2 年保持の定常状態、Firehose もエージェントも 5 分ごとに 1 ファイルを置くと仮定しています。無料枠と Athena のスキャン料は入れていません。
-
-CloudWatch Logs の料金ページで、段階料金が適用される Vended Logs として挙がっているのは WAF や CloudFront などで、RDS のログは見当たらなかったので、ここでは通常の取り込み料で計算しています。
-
-Aurora の監査ログは CloudWatch Logs を経由しないと外に出しにくいので、取り込み料はほぼ避けられません。保持期間を短くしても下がるのは保管料だけです。減らすなら、`server_audit_events` と `server_audit_excl_users` で量そのものを絞るしかありません。OS 側は CloudWatch Logs を通さずに S3 に置けるので、この試算では桁が 1 つ変わります。
-
 ## ハマりどころ
 
 ### DB と転送経路
@@ -309,7 +283,7 @@ Firehose の作成画面には「動的パーティショニング」もあり�
 - 原因: CloudWatch Logs のサブスクリプションフィルターから届くデータは gzip で圧縮されていて、中身は `logEvents` 配列に複数のイベントをまとめた JSON です。`CONTROL_MESSAGE` は宛先に届くかを確かめるためのメッセージです（[Log group-level subscription filters](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/SubscriptionFilters.html)）
 - 対処: Firehose の「CloudWatch Logs からのソースレコードを展開」と「メッセージ抽出」を有効にし、改行の区切りを付けます。メッセージ抽出を有効にすると、`owner` や `logGroup` などのメタデータが取り除かれ、`message` の中身だけが届きます（[Extract message after decompression of CloudWatch Logs](https://docs.aws.amazon.com/firehose/latest/dev/Message_extraction.html)）。設定を変えたら、改めて S3 に届いたファイルを開いて確認します
 
-Terraform で書くと次のようになるはずです。プロセッサーの種類とパラメータ名は Terraform AWS プロバイダーのドキュメントで確認しましたが、このブロックそのものを実環境に適用して確かめたわけではないので、`plan` と実際に届いたファイルで確かめてください。なお Firehose のドキュメントには、展開を有効にしたストリームは CloudWatch Logs のサブスクリプションフィルター専用にし、Vended Logs と混ぜないように、と書かれています（[Decompress CloudWatch Logs](https://docs.aws.amazon.com/firehose/latest/dev/writing-with-cloudwatch-logs-decompression.html)）。
+Terraform で書くと次のようになるはずです。`aws_kinesis_firehose_delivery_stream` の中の `processing_configuration` の部分だけを抜き出していて、ストリーム本体と S3 の設定は省略しています。プロセッサーの種類とパラメータ名は Terraform AWS プロバイダーのドキュメントで確認しましたが、このブロックそのものを実環境に適用して確かめたわけではないので、`plan` と実際に届いたファイルで確かめてください。なお Firehose のドキュメントには、展開を有効にしたストリームは CloudWatch Logs のサブスクリプションフィルター専用にし、Vended Logs と混ぜないように、と書かれています（[Decompress CloudWatch Logs](https://docs.aws.amazon.com/firehose/latest/dev/writing-with-cloudwatch-logs-decompression.html)）。
 
 ```hcl
 processing_configuration {
@@ -363,6 +337,8 @@ resource "aws_cloudwatch_log_subscription_filter" "rds_audit" {
   role_arn        = aws_iam_role.cwl_to_firehose.arn
 }
 ```
+
+`aws_kinesis_firehose_delivery_stream.audit` と、CloudWatch Logs が引き受ける IAM ロール `aws_iam_role.cwl_to_firehose`（信頼ポリシーと `firehose:PutRecord` などの権限、ハマりどころ 6）の定義は省略しています。
 
 すでに RDS がロググループを作ってしまっている場合は、`terraform import` で取り込みます。同じように、手で先に作っていた S3 バケットを Terraform で作ろうとして `BucketAlreadyOwnedByYou` になったこともありました。手で作ったものは import するか、data ソースで参照するかを先に決めておくと揉めません。
 
@@ -605,15 +581,64 @@ rules:
   - -e 1
 ```
 
-## まとめ
+## ログの量とコスト: 効くのは CloudWatch Logs の取り込み料
 
-振り返ると、ハマったところは大きく 3 つに分かれました。
+### OS 側は自分の環境で測る
 
-- ログが出ていない: `server_audit_logging`、`-a task,never`、IAM と依存関係
-- 出ているが読めない: gzip と JSON の包み、`node=`、16 進の proctitle、予約語
-- 多すぎる: `rdsadmin` と内部クエリ、失敗した syscall、調査コマンド自身
+auditd の量は、ルールとサーバーの使われ方で桁が変わるので、自分の環境で測るしかありません。測り方としては、`audit.log` のローテーションの間隔から 1 日あたりの量を出す方法と、`aureport --summary` で一定時間のイベント数と内訳を見る方法が手軽です。内訳を見ると、「失敗したシステムコール」が大きな割合を占めていることがあります（ハマりどころ 10）。ルールを見直す前後で、同じ時間幅の内訳を比べると効果が分かります。
 
-監査ログは、普段は誰も見ず、見たいときには手遅れ、という性質のものです。「設定したつもり」で実際には何も残っていない、ということが起きやすいので、導入したら一度は自分で怪しい操作（存在しないユーザーでのログイン失敗や、`/etc/passwd` の変更など）をしてみて、S3 と Athena までたどれることを確かめておくのがよいと思います。
+収集エージェントで JSON Lines にして gzip すると、テキストのログは圧縮がよく効くので、S3 の保管料はあまり問題になりません。
+
+### 料金の構造（試算）
+
+効いてくるのは CloudWatch Logs の取り込み料です。東京リージョンの公開価格（2026 年 10 月現在）で、生ログが 1 日 1 GB と仮定した場合を試算しました。1 GB は計算しやすい丸めた値で、特定の環境の実測値ではありません。料金はほぼ量に比例するので、自分の環境の量に合わせて読み替えてください。
+
+| 経路 | CloudWatch Logs 取り込み | CloudWatch Logs 保管 | Firehose（展開込み） | S3 保管・PUT | 合計（月） |
+|---|---|---|---|---|---|
+| Aurora → CloudWatch Logs（90 日保持）→ Firehose → S3 | 約 $22.8 | 約 $3.0 | 約 $1.2 | 約 $1.8 | 約 $28.8 |
+| Aurora → CloudWatch Logs（1 日保持）→ Firehose → S3 | 約 $22.8 | 約 $0.03 | 約 $1.2 | 約 $1.8 | 約 $25.9 |
+| EC2 → エージェント → S3 直接 | - | - | - | 約 $1.8 | 約 $1.8 |
+
+使った単価は、CloudWatch Logs の取り込みが $0.76/GB（Standard クラス）、保管が $0.033/GB-月、Firehose の取り込みが $0.036/GB、CloudWatch Logs の展開が $0.00403/GB、S3 Standard が $0.025/GB-月、PUT が 1,000 件あたり $0.0047 です（AWS の Price List API の東京リージョンの値）。CloudWatch Logs の保管は圧縮前のサイズで計算しているので上限寄りです。Firehose も、展開前と展開後をどちらも 30 GB/月とし、レコードごとの 5 KB 単位の切り上げは入れていません。保持期間の 90 日と 1 日も比較のための仮定です。S3 は gzip で 1/10、2 年保持の定常状態、Firehose もエージェントも 5 分ごとに 1 ファイルを置くと仮定しています。無料枠と Athena のスキャン料は入れていません。
+
+CloudWatch Logs のドキュメントの [Supported log destinations and permissions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-destinations-table.html) では、Aurora MySQL のログは Vended logs ではなく Custom logs に分類されています。段階料金のある Vended Logs の単価は使えないので、ここでは通常の取り込み料で計算しています。
+
+Aurora の監査ログは CloudWatch Logs を経由しないと外に出しにくいので、取り込み料はほぼ避けられません。保持期間を短くしても下がるのは保管料だけです。減らすなら、`server_audit_events` と `server_audit_excl_users` で量そのものを絞るしかありません。OS 側は CloudWatch Logs を通さずに S3 に置けるので、この試算では桁が 1 つ変わります。
+
+## 導入後に確かめること
+
+監査ログは、普段は誰も見ず、見たいときには手遅れ、という性質のものです。「設定したつもり」で実際には何も残っていない、ということが起きやすいので、導入したら次を一度確かめておくのがよいと思います。カッコ内は関係するハマりどころの番号です。
+
+DB 側と転送経路
+
+- [ ] `describe-db-cluster-parameters` で、`server_audit_logging` が `1`、`server_audit_events` が想定どおりになっている（1）
+- [ ] `/aws/rds/cluster/<クラスター名>/audit` のロググループに新しいイベントが届いていて、保持期間が「失効しない」のままになっていない（1、7）
+- [ ] `rdsadmin` の内部クエリでログが埋まっていない（2）
+- [ ] サブスクリプションフィルターのテストメッセージが Firehose に届く（6）
+- [ ] S3 に届いたファイルを開いて、展開済みで 1 行 1 イベントになっている（5）
+- [ ] Athena で日付を指定したクエリが返る。クエリ文にカンマを含む行で列がずれていないかも見る（8）
+
+OS 側
+
+- [ ] 読み込まれているルールに、Amazon Linux 2023 の既定の `-a task,never` が残っていない（9）
+- [ ] `auditctl -s` の `lost` が増えていない
+- [ ] ルールを詰めている間は `-e 1`、固めるときだけ `-e 2` になっている（12）
+- [ ] `aureport --summary` で、失敗したシステムコールが大きな割合を占めていない（10）
+- [ ] `audit.log` のグループが `log_group` で指定したものになっていて、ローテーションのあともエージェントが読めている（17）
+- [ ] `name_format` の設定と、Athena などのパーサーが前提にしている行の形が揃っている（13）
+- [ ] S3 に置いた JSON の `instance_id` が展開されている。分析には収集時刻ではなく `msg=audit(...)` の時刻を使う（18）
+
+最後に
+
+- [ ] 自分で怪しい操作（存在しないユーザーでのログイン失敗や、`/etc/passwd` の変更など）をしてみて、S3 と Athena までたどれる
+
+## 確かめていないこと
+
+- Aurora MySQL のエンジンバージョンによる違い。元にした構成は 1 つのバージョンで動かしたもので、ほかのバージョンでは試していません。Advanced Auditing のドキュメント（[Using Advanced Auditing with an Amazon Aurora MySQL DB cluster](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Auditing.html)、2026 年 10 月時点）には、パラメーター・記録できるイベント・100 MB でのローテーションのどれについても、バージョンごとの違いは書かれていません
+- 記事に載せた auditd の出力は、Docker Desktop（Linux カーネル 6.10、arm64）上の Amazon Linux 2023 のコンテナ（`audit` 3.1.5）で再現したもので、EC2 の実機での出力ではありません（15 の `sessionid` と `loginuid` の確認だけは EC2 で行っています）
+- Firehose の `processing_configuration` の Terraform ブロック（5）は、実環境に適用して確かめていません
+- Athena で、クエリ文にカンマを含む監査ログを正しく読む SerDe の設定（8）は詰め切れていません
+- 料金は公開価格と仮定の量で計算した試算で、実測の量や請求額にもとづくものではありません。無料枠と Athena のスキャン料も入れていません
 
 ## 参考
 
@@ -628,6 +653,7 @@ rules:
 - [Reserved keywords（Athena）](https://docs.aws.amazon.com/athena/latest/ug/reserved-words.html)
 - [Partition projection with Amazon Athena](https://docs.aws.amazon.com/athena/latest/ug/partition-projection.html)
 - [Amazon CloudWatch pricing](https://aws.amazon.com/cloudwatch/pricing/)
+- [Supported log destinations and permissions（CloudWatch Logs）](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/AWS-logs-destinations-table.html)
 - [auditctl(8)](https://man7.org/linux/man-pages/man8/auditctl.8.html)、[auditd.conf(5)](https://man7.org/linux/man-pages/man5/auditd.conf.5.html)、[pam_tty_audit(8)](https://man7.org/linux/man-pages/man8/pam_tty_audit.8.html)
 - [Starting the audit Service（RHEL 7 Security Guide）](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-starting_the_audit_service)
 - [slackhq/go-audit](https://github.com/slackhq/go-audit)
