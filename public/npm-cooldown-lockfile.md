@@ -16,6 +16,8 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
+「公開から 7 日待つ」設定を入れても、lockfile に入っている新しすぎる版を CI で止めたのは pnpm だけで、npm と Yarn は止めませんでした。クールダウンを入れたので CI も守られている、と考えている人に向けて、3 つを同じ条件で比べた結果を書きます。
+
 ## きっかけ
 
 先日、自分の TypeScript のリポジトリをいくつか見直したら、公開されてから 1 週間たっていない依存が 30〜50 個ずつ入っていました。依存を足したタイミングで普通に `npm install` していただけなので、そうなるのは当たり前なのですが、去年の chalk / debug の乗っ取りや Shai-Hulud のことを考えると少し怖い状態です。
@@ -26,13 +28,20 @@ agreed_posting_campaign_term: false
 
 ## 試した結果
 
-![3つのパッケージマネージャーの結果](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/npm-cooldown/cmp.png)
+どれも「公開から 7 日待つ」設定を入れ、公開 3 日の `typescript-eslint@8.72.0` を含む lockfile で試しました。
 
-新しく版を決めるときは 3 つとも設定どおり動きました。違いが出たのは lockfile どおりに入れるときで、止めてくれたのは pnpm だけでした。npm と Yarn は、lockfile に書いてある公開 3 日の版をエラーも警告もなく入れます。
+| | 設定 | lockfile なしで解決 | lockfile どおりに入れる（CI と同じコマンド） |
+|---|---|---|---|
+| npm | `min-release-age=7` | 8.71.2 を選ぶ | 止まらない。`npm ci` が 8.72.0 をそのまま入れる |
+| pnpm | `minimumReleaseAge: 10080` | 8.71.2 を選ぶ | 止まる。`pnpm install --frozen-lockfile` が 13 件を挙げて失敗する |
+| Yarn | `npmMinimalAgeGate: 7d` | 8.71.2 を選ぶ | 止まらない。`yarn install --immutable` が 8.72.0 をそのまま入れる |
+
+新しく版を決めるときは 3 つとも設定どおり動きました。違いが出たのは lockfile どおりに入れるときで、止めてくれたのは pnpm だけでした。npm と Yarn は、lockfile に書いてある公開 3 日の版を、クールダウンについてのエラーも警告も出さずに入れます。
 
 ## 試した条件
 
 - 2026 年 10 月 23 日、macOS、Node.js 24.22.1
+- npm 12.2.1、pnpm 11.28.6、Yarn 4.18.1
 - 依存は `typescript-eslint@^8.70.0` だけのプロジェクト
 - この時点で `typescript-eslint` の最新は 8.72.0（10 月 19 日公開）、その前が 8.71.2（10 月 12 日公開）
 
@@ -44,7 +53,7 @@ agreed_posting_campaign_term: false
 
 あわせて、lockfile がない状態からの解決も試しています。
 
-設定の書き方は、名前も単位もばらばらなので注意が必要です。npm は日、pnpm と Yarn は分で指定します（Yarn は `7d` のような書き方もできます）。
+設定の書き方は、名前も単位もばらばらなので注意が必要です。npm は日、pnpm と Yarn は分で指定します（Yarn は `7d` のような書き方もできます）。公式ドキュメントは [npm の `min-release-age`](https://docs.npmjs.com/cli/v11/using-npm/config#min-release-age)、[pnpm の `minimumReleaseAge`](https://pnpm.io/settings/dependency-resolution#minimumreleaseage)、[Yarn の `npmMinimalAgeGate`](https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate) です。
 
 ```ini:.npmrc
 min-release-age=7
@@ -58,7 +67,7 @@ minimumReleaseAge: 10080
 npmMinimalAgeGate: 7d
 ```
 
-npm は 11.10.0 から、pnpm は 10.16.0 から使えます。npm 11.9.0 で `npm config ls -l` を見ると、`min-release-age` 自体が出てきませんでした。
+npm は [11.10.0](https://github.com/npm/cli/releases/tag/v11.10.0) から、pnpm は [10.16.0](https://github.com/pnpm/pnpm/releases/tag/v10.16.0) から使えます。npm 11.9.0 で `npm config ls -l` を見ると、`min-release-age` 自体が出てきませんでした。
 
 ## 実際の出力
 
@@ -72,7 +81,7 @@ pnpm のドキュメントを見ると、`pnpm install` は読み込んだ lockf
 
 失敗したあとに `node_modules` を見ると、8.72.0 はすでに配置されていました。チェックはパッケージの配置と並行して走っていて、最後に失敗する作りのようです。
 
-そこで、`postinstall` を持つ esbuild で同じことを試しました。チェックに通る場合は `esbuild postinstall$ node install.js` が実行されますが、チェックに引っかかる場合は、配置はされても `postinstall` は実行されずに終わりました。Shai-Hulud のような `postinstall` で動くタイプは、ここで止まることになります。
+そこで、`postinstall` を持つ esbuild で同じことを試しました。チェックに通る場合は `esbuild postinstall$ node install.js` が実行されますが、チェックに引っかかる場合は、配置はされても `postinstall` は実行されずに終わりました。esbuild で試した範囲では、Shai-Hulud のような `postinstall` で動くタイプはここで止まることになります。ほかのパッケージや、依存の深いところにある `postinstall` でも同じになるかは確かめていません。
 
 それでも、ファイル自体は置かれます。後続のステップで実行されないよう、CI の該当ジョブはこの時点で落とす（終了コードを無視しない）のが前提です。
 
@@ -117,7 +126,7 @@ GitHub Actions では、`npm ci` より前のジョブに置いています。
 - chalk / debug の乗っ取り（2025 年 9 月 8 日）：悪意ある版がダウンロードできたのは 13:16〜15:15 UTC 頃の約 2 時間
 - Shai-Hulud（2025 年 9 月中旬）：`postinstall` で認証情報を盗み、盗んだトークンで別のパッケージにも自分を仕込むワーム。CISA によると 500 以上のパッケージが汚染され、9 月 16 日より前の版に固定するよう勧告が出ました
 
-Andrew Nesbitt さんの記事では、調べられた 10 件のサプライチェーン攻撃のうち 8 件で、悪意ある版が使えた期間が 1 週間未満だったと紹介されています。7 日という数字は、このあたりが根拠になっています。pnpm 11 は何も設定しなくても 1 日（1440 分）待つようになっています。
+Andrew Nesbitt さんの記事では、調べられた 10 件のサプライチェーン攻撃のうち 8 件で、悪意ある版が使えた期間が 1 週間未満だったと紹介されています。7 日という数字は、このあたりが根拠になっています。pnpm 11 は何も設定しなくても 1 日（1440 分）待つようになっています（[pnpm 11.0.0 のリリースノート](https://github.com/pnpm/pnpm/releases/tag/v11.0.0)）。
 
 ## 自分のリポジトリでやったこと
 
@@ -130,9 +139,15 @@ Andrew Nesbitt さんの記事では、調べられた 10 件のサプライチ�
 
 作り直しの途中で、使っていた ESLint 9 が非推奨になっていることにも気づいたので、ついでに 10 に上げました。
 
-## CI が入れる道具も見落としていた（2026 年 10 月現在）
+## おわりに
 
-この記事を Qiita に自動で投稿する仕組みを作っているときにも、同じ種類の穴に気づきました。
+npm も `min-release-age` で lockfile を見てくれればいいのに、とは思います。ただ、`npm ci` が「lockfile どおりに入れる」コマンドである以上、今の挙動も筋は通っています。
+
+pnpm を使っているなら、設定を入れるだけで CI まで守られます。npm と Yarn の場合は、設定とは別に CI で lockfile を見る仕組みを用意しておくのがよさそうです。
+
+## 補足：CI が入れる道具も見落としていた（2026 年 10 月現在）
+
+本題から少し外れますが、この記事を Qiita に自動で投稿する仕組みを作っているときにも、同じ種類の穴に気づきました。
 
 Qiita CLI の公式手順どおり `npx qiita init` を実行すると、投稿用の GitHub Actions のワークフローが作られます。そこで使われている `increments/qiita-cli/actions/publish@v1` の中身を読むと、2026 年 10 月現在、次のように CLI を入れていました。
 
@@ -151,19 +166,15 @@ Qiita CLI の公式手順どおり `npx qiita init` を実行すると、投稿�
 
 公式アクションが悪いというより、常に最新を入れる便利さとのトレードオフだと思います。ただ、自分の運用には合わないので、CLI を記事リポジトリの `package.json` と lockfile で 1.10.0（公開から 7 日以上たった版）に固定しました。そのうえで、`npm ci --ignore-scripts` で入れて投稿する同じ処理を、[自分でワークフローに書きました](https://github.com/OTA-EITA/qiita-articles/blob/main/.github/workflows/publish.yml)。
 
-守る対象は、アプリの依存だけではありません。パイプラインが裏で入れている道具も含めて考える必要がある、というのが今回いちばんの学びでした。
-
-## おわりに
-
-npm も `min-release-age` で lockfile を見てくれればいいのに、とは思います。ただ、`npm ci` が「lockfile どおりに入れる」コマンドである以上、今の挙動も筋は通っています。
-
-pnpm を使っているなら、設定を入れるだけで CI まで守られます。npm と Yarn の場合は、設定とは別に CI で lockfile を見る仕組みを用意しておくのがよさそうです。
+守る対象は、アプリの依存だけではありません。パイプラインが裏で入れている道具も、同じように見ておく必要があります。
 
 ## 参考
 
 - [Minimum Release Age: npm, pnpm, Yarn, Bun and Deno Settings](https://www.devanshuverma.in/blog/minimum-release-age-package-managers-complete-guide)：各パッケージマネージャーの設定の一覧と、npm ci が lockfile の版をそのまま入れることの指摘
 - [2026年春のOSS事故から学ぶ npm・pnpm・GitHub Actionsのサプライチェーン防御](https://zenn.dev/trknhr/articles/989086c7b8ecf0)
 - [Package managers need to cool down（Andrew Nesbitt）](https://nesbitt.io/2026/03/04/package-managers-need-to-cool-down)
+- [npm: config（min-release-age）](https://docs.npmjs.com/cli/v11/using-npm/config#min-release-age)
 - [pnpm: Dependency resolution settings（minimumReleaseAge / trustLockfile）](https://pnpm.io/settings/dependency-resolution)
+- [Yarn: Settings (.yarnrc.yml)（npmMinimalAgeGate）](https://yarnpkg.com/configuration/yarnrc#npmMinimalAgeGate)
 - [Widespread npm Supply Chain Attack（Wiz）](https://www.wiz.io/blog/widespread-npm-supply-chain-attack-breaking-down-impact-scope-across-debug-chalk)
 - [Widespread Supply Chain Compromise Impacting npm Ecosystem（CISA）](https://www.cisa.gov/news-events/alerts/2025/09/23/widespread-supply-chain-compromise-impacting-npm-ecosystem)
