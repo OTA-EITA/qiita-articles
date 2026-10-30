@@ -1,5 +1,5 @@
 ---
-title: n8n・Open WebUI・LiteLLM・Langflow・Flowise を公式の compose で立てて、最初に来た人が管理者になるかを確かめた
+title: AI セルフホスト 5 製品を公式 compose で立てた直後、最初に来た人が管理者になれたのは n8n と Open WebUI だった
 tags:
   - n8n
   - LLM
@@ -16,25 +16,7 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
-## きっかけ
-
-Intruder が 2026 年 3 月に公開した調査 [From enterprise chatbots to gooner caves: exposed AI infrastructure is rampant](https://www.intruder.io/research/from-enterprise-chatbots-to-gooner-caves-exposed-ai-infrastructure-is-rampant) は、インターネットに公開された AI 関連のサービスを調べて、Ollama、Flowise、Langflow、Open WebUI などに認証なしで使えるものが多いと報告しています。その中に、次の一文があります。
-
-> an alarming number of hosts appearing to be in a freshly installed setup, without any authentication.
-
-「入れたばかりの状態のまま、認証なしで公開されているホストが驚くほど多い」という指摘です。
-
-では、各プロジェクトの公式の compose ファイルで立てた直後は、実際にどういう状態なのか。n8n、Open WebUI、LiteLLM、Langflow、Flowise を、公式の `docker-compose.yml` と `.env` の例のまま GitHub Actions のランナー上で起動して確かめました。あわせて、同じ設定を compose ファイルから見つける CLI も作りました。
-
-- 点検ツールと検証のワークフロー: [OTA-EITA/ai-selfhost-audit](https://github.com/OTA-EITA/ai-selfhost-audit)
-
-### 既にある記事との違い
-
-Intruder の調査を紹介した記事に、[【悲報】100万台のAIサービスをスキャンしたら「史上最悪のセキュリティ」だった件](https://qiita.com/emi_ndk/items/0aac69d8a962d2413d9d) があります。外から見た数の話はそちらに詳しく書かれています。
-
-この記事は逆に、公式の手順で立てた直後の内側を見ます。どの製品が「最初に来た人が管理者」になる作りなのか、例のパスワードは何で本当に通るのかを、実際に起動して確かめた結果です。
-
-## 結論
+n8n・Open WebUI・LiteLLM・Langflow・Flowise を、公式の compose ファイルと `.env` の例のまま起動して確かめました。
 
 | 製品（版） | 立てた直後 | 例のパスワード |
 |---|---|---|
@@ -44,10 +26,14 @@ Intruder の調査を紹介した記事に、[【悲報】100万台のAIサー�
 | Langflow 1.12.7 | 自動ログインは既定で無効（403） | Postgres が `langflow` で入れる |
 | Flowise 3.1.4 | 公式の手順では起動しなかった（後述） | なし（SQLite） |
 
-- 5 つとも、公式の compose ファイルはアプリのポートをホストの全インターフェースに公開しています。
-- n8n と Open WebUI は、管理者を作るまでの間に外から先に来た人が管理者になれます。しかも「まだ誰もいない」ことが、ログインなしの API で分かります。
+- n8n と Open WebUI は、管理者を作るまでの間なら、外から先に来た人が管理者になれます。「まだ誰もいない」ことも、ログインなしの API で分かります。
 - LiteLLM と Langflow は、最近の版で安全な既定に変わっていました。ただし Langflow は、古い版のイメージや `LANGFLOW_AUTO_LOGIN=true` で、誰でもスーパーユーザーになります。
 - データベースの例のパスワードは、3 製品で `.env` や compose に書かれたまま通りました。
+- 5 つとも、公式の compose ファイルはアプリのポートをホストの全インターフェースに公開しています。
+
+これらをセルフホストしていて、外に出す前に何を変えるか決めたい人向けです。
+
+Intruder が 2026 年 3 月 27 日に公開した調査 [From enterprise chatbots to gooner caves: exposed AI infrastructure is rampant](https://www.intruder.io/research/from-enterprise-chatbots-to-gooner-caves-exposed-ai-infrastructure-is-rampant) は、インターネットに公開された AI 関連のサービスに、認証なしで使えるものが多いと報告しています。その中の "an alarming number of hosts appearing to be in a freshly installed setup, without any authentication"（入れたばかりの状態のまま、認証なしで公開されているホストが驚くほど多い）という一文を見て、公式の手順で立てた直後の内側がどうなっているかを確かめることにしました。外から見た数の話は、Intruder の調査を紹介した [【悲報】100万台のAIサービスをスキャンしたら「史上最悪のセキュリティ」だった件](https://qiita.com/emi_ndk/items/0aac69d8a962d2413d9d) に詳しく書かれています。点検に使った CLI と検証のワークフローは [OTA-EITA/ai-selfhost-audit](https://github.com/OTA-EITA/ai-selfhost-audit) に置いてあります。
 
 ## 対象と前提
 
@@ -57,19 +43,39 @@ Intruder の調査を紹介した記事に、[【悲報】100万台のAIサー�
   - LiteLLM: [v1.106.2 の docker-compose.yml と .env.example](https://github.com/BerriAI/litellm/tree/v1.106.2)
   - Langflow: [v1.12.7 の docker_example](https://github.com/langflow-ai/langflow/blob/v1.12.7/docker_example/docker-compose.yml)
   - Flowise: [3.1.4 の docker/](https://github.com/FlowiseAI/Flowise/tree/flowise%403.1.4/docker)
-- 起動したのは GitHub Actions の使い捨てのランナーです。外から届かないよう、公開ポートは override ファイルですべて 127.0.0.1 に付け替えています。付け替える前の compose が全インターフェースに公開していることは、`docker compose config` で確かめました。
+- 起動したのは 2026 年 10 月 29 日、GitHub Actions の使い捨てのランナーです。外から届かないよう、公開ポートは override ファイルですべて 127.0.0.1 に付け替えています。付け替える前の compose が全インターフェースに公開していることは、`docker compose config` で確かめました。
 - イメージが `latest` や `main` の製品は、上の版のタグに固定しました。
+
+## 立てるときに変えること
+
+先に、確かめた結果から決めた手順を載せます。理由は製品ごとの節にあります。
+
+| 製品 | 外に出す前にやること |
+|---|---|
+| 共通 | 管理者を作るまではポートを `127.0.0.1:` で公開する。DB のポートは公開しない。例のパスワードを作り直す |
+| n8n | 先に owner を作る（または `N8N_INSTANCE_OWNER_MANAGED_BY_ENV=true` で env から作る）。`N8N_ENCRYPTION_KEY` と `N8N_RUNNERS_AUTH_TOKEN` を生成する。2.45.5 以降にする |
+| Open WebUI | `WEBUI_ADMIN_EMAIL` と `WEBUI_ADMIN_PASSWORD` を設定する。`WEBUI_SECRET_KEY` を生成する。`CORS_ALLOW_ORIGIN` を自分のオリジンにする |
+| LiteLLM | `LITELLM_MASTER_KEY` と `LITELLM_SALT_KEY` を生成する。`DATABASE_URL` のパスワードを変える |
+| Langflow | イメージを 1.10.3 以降に固定する。`LANGFLOW_AUTO_LOGIN` を `true` にしない |
+| Flowise | 先に owner を登録する。`TRUST_PROXY` をプロキシのアドレスにする |
 
 ## n8n: ログインなしで owner を作れる
 
-n8n は、最初に owner（管理者）を作るまでの間、owner を作る API を認証なしで受け付けます（[owner.controller.ts L25-29](https://github.com/n8n-io/n8n/blob/n8n@2.44.6/packages/cli/src/controllers/owner.controller.ts#L25-L29)、[ownership.service.ts L227-232](https://github.com/n8n-io/n8n/blob/n8n@2.44.6/packages/cli/src/services/ownership.service.ts#L227-L232)）。条件は「まだ owner がいないこと」だけです。
+n8n は、最初に owner（管理者）を作るまでの間、owner を作る API を認証なしで受け付けます（[owner.controller.ts L25-29](https://github.com/n8n-io/n8n/blob/n8n@2.44.5/packages/cli/src/controllers/owner.controller.ts#L25-L29)、[ownership.service.ts L227-232](https://github.com/n8n-io/n8n/blob/n8n@2.44.5/packages/cli/src/services/ownership.service.ts#L227-L232)）。条件は「まだ owner がいないこと」だけです。
+
+```sh
+curl -s http://127.0.0.1:5678/rest/settings | jq .data.userManagement.showSetupOnFirstLoad
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:5678/rest/owner/setup \
+  -H 'content-type: application/json' \
+  -d '{"email":"lab-owner@example.com","firstName":"Lab","lastName":"Owner","password":"Lab-Owner-Passw0rd"}'
+```
 
 | 確かめたこと | 結果 |
 |---|---|
 | ログインなしで `GET /rest/settings` | `showSetupOnFirstLoad: true` |
 | ログインなしで `POST /rest/owner/setup` | 200。送ったメールアドレスで owner ができた |
 | もう一度 `POST /rest/owner/setup` | 400 `Instance owner already setup` |
-| ログインなしで `GET /rest/workflows` | 401 |
+| owner を作ったあと、ログインなしで `GET /rest/workflows` | 401 |
 
 `/rest/settings` は誰でも読めるので、「この n8n にはまだ owner がいない」ことが外から分かります。owner を作ったあとは、ほかの API は 401 になりました。危ないのは、立ててから owner を作るまでの間です。
 
@@ -80,6 +86,12 @@ n8n は、最初に owner（管理者）を作るまでの間、owner を作る 
 ## Open WebUI: 最初にサインアップした人が admin
 
 Open WebUI は、最初に登録したユーザーを admin にして、そのあとのサインアップを止めます（[auths.py L811-827](https://github.com/open-webui/open-webui/blob/v0.12.3/backend/open_webui/routers/auths.py#L811-L827)）。
+
+```sh
+curl -s http://127.0.0.1:3000/api/config | jq .onboarding
+curl -s -X POST http://127.0.0.1:3000/api/v1/auths/signup -H 'content-type: application/json' \
+  -d '{"name":"first","email":"first@example.com","password":"Lab-First-Passw0rd"}' | jq .role
+```
 
 | 確かめたこと | 結果 |
 |---|---|
@@ -103,7 +115,7 @@ LiteLLM proxy refused to start: the master key is empty.
 
 `LITELLM_SALT_KEY` を設定しないと、その暗号化にもマスターキーが使われます（[encrypt_decrypt_utils.py L32-40](https://github.com/BerriAI/litellm/blob/v1.106.2/litellm/proxy/common_utils/encrypt_decrypt_utils.py#L32-L40)）。
 
-## Langflow: 既定では安全、ただし古いイメージに注意
+## Langflow: 既定では安全、ただし 1.10.2 より前のイメージに注意
 
 Langflow のコードの既定は今も `AUTO_LOGIN=True` です（[auth.py L96-104](https://github.com/langflow-ai/langflow/blob/v1.12.7/src/lfx/src/lfx/services/settings/auth.py#L96-L104)）。公式のイメージは 1.10.2 から `LANGFLOW_AUTO_LOGIN=false` を入れていて（[build_and_push.Dockerfile L234-235](https://github.com/langflow-ai/langflow/blob/v1.12.7/docker/build_and_push.Dockerfile#L234-L235)）、イメージで動かす限りは無効です。
 
@@ -113,7 +125,18 @@ Langflow のコードの既定は今も `AUTO_LOGIN=True` です（[auth.py L96-
 | `LANGFLOW_AUTO_LOGIN=true` にして同じリクエスト | 200。スーパーユーザーのアクセストークンが返った |
 | 例のパスワード `langflow` で Postgres にログイン | できた |
 
-公式の `docker_example` はイメージが `langflowai/langflow:latest` なので、今 pull すれば安全な既定になります。古いタグに固定しているなら注意が必要です。Langflow には、CISA の「悪用が確認された脆弱性」のカタログに載っているものが複数あり、少なくとも 1.9.1 未満は上げるべき版です（CVE-2025-3248 は認証なしのリモートコード実行で、1.3.0 で修正）。
+公式の `docker_example` はイメージが `langflowai/langflow:latest` なので、今 pull すれば安全な既定になります。古いタグに固定しているなら注意が必要です。2026 年 10 月 30 日の時点で、CISA の [悪用が確認された脆弱性のカタログ](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)（KEV）には Langflow の脆弱性が 6 件載っています。
+
+| CVE | KEV に載った日 | 対象の版 |
+|---|---|---|
+| CVE-2025-3248 | 2025-05-05 | 1.3.0 未満 |
+| CVE-2026-33017 | 2026-03-25 | 1.8.2 以前 |
+| CVE-2025-34291 | 2026-05-21 | 1.6.9 以前 |
+| CVE-2026-55255 | 2026-07-07 | 1.9.1 未満 |
+| CVE-2026-0770 | 2026-07-21 | 1.7.3 以前 |
+| CVE-2026-9198 | 2026-08-04 | 1.10.0 以前 |
+
+対象の版は GitHub Advisory Database の記載です。KEV の 6 件を外すだけなら 1.10.1 以降で足りますが、自動ログインが既定で無効になるのは 1.10.2 から、MCP の stdio サーバーの設定からのコマンド実行（[GHSA-w794-rj3p-xv45](https://github.com/advisories/GHSA-w794-rj3p-xv45)、critical）が直ったのは 1.10.3 からです。固定するなら 1.10.3 以降にします。
 
 ## Flowise: 公式の手順では起動しなかった
 
@@ -154,22 +177,11 @@ HIGH の N8N010 は、`.env` が指定している 2.44.5 に、まだ修正さ�
 
 ルールは全部で 50 個です。製品ごとに、上で見た「最初の訪問者」「例の値」のほか、コード実行やファイルアクセスの制限を外す設定、既知の脆弱性がある版などを見ます。各ルールには、根拠になるソースの行や advisory へのリンクを付けました。
 
-## 立てるときに変えること
+## 確かめていないこと
 
-| 製品 | 外に出す前にやること |
-|---|---|
-| 共通 | 管理者を作るまではポートを `127.0.0.1:` で公開する。DB のポートは公開しない。例のパスワードを作り直す |
-| n8n | 先に owner を作る（または `N8N_INSTANCE_OWNER_MANAGED_BY_ENV=true` で env から作る）。`N8N_ENCRYPTION_KEY` と `N8N_RUNNERS_AUTH_TOKEN` を生成する。2.45.5 以降にする |
-| Open WebUI | `WEBUI_ADMIN_EMAIL` と `WEBUI_ADMIN_PASSWORD` を設定する。`WEBUI_SECRET_KEY` を生成する。`CORS_ALLOW_ORIGIN` を自分のオリジンにする |
-| LiteLLM | `LITELLM_MASTER_KEY` と `LITELLM_SALT_KEY` を生成する。`DATABASE_URL` のパスワードを変える |
-| Langflow | イメージを 1.10.3 以降に固定する。`LANGFLOW_AUTO_LOGIN` を `true` にしない |
-| Flowise | 先に owner を登録する。`TRUST_PROXY` をプロキシのアドレスにする |
-
-## まとめ
-
-公式の compose ファイルは、手元で試すための例です。n8n と Open WebUI は、立ててから管理者を作るまでの間に外から先に来た人が管理者になれる作りで、それがログインなしの API で外から分かります。Intruder の言う「入れたばかりの状態のまま」の公開は、この時間差がそのまま残ったものだと考えられます。
-
-LiteLLM と Langflow は、最近の版で安全な既定に寄せていました。それでも DB の例のパスワードは残っていて、ポートも全インターフェースに公開されています。立てたらまず管理者を作り、例の値を作り直してから外に出す、という順番を守るのが確実です。
+- Flowise の「最初に登録した人が owner」の挙動。上のとおり起動できなかったので、ソースを読んだだけです
+- 公開されている「入れたばかり」のホストが、実際にこの時間差で残ったものかどうか。立ててから管理者を作るまでの間に外から見えていれば同じ状態になる、というところまでしか言えません
+- 公式の compose 以外の立て方（Helm チャート、各社のマネージド版、ワンクリックのテンプレート）
 
 ## 参考
 
@@ -180,4 +192,5 @@ LiteLLM と Langflow は、最近の版で安全な既定に寄せていまし�
 - [langflow-ai/langflow v1.12.7](https://github.com/langflow-ai/langflow/tree/v1.12.7)
 - [FlowiseAI/Flowise 3.1.4](https://github.com/FlowiseAI/Flowise/tree/flowise%403.1.4)、[#6030](https://github.com/FlowiseAI/Flowise/issues/6030)、[#6688](https://github.com/FlowiseAI/Flowise/issues/6688)
 - [CISA Known Exploited Vulnerabilities Catalog](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)
+- [GitHub Advisory Database: Langflow](https://github.com/advisories?query=langflow)
 - [OTA-EITA/ai-selfhost-audit](https://github.com/OTA-EITA/ai-selfhost-audit)
