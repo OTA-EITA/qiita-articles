@@ -1,11 +1,11 @@
 {
   "claude-agent-teams-tmux.md": "2026-10-26T08:00:00+09:00",
   "kinesis-lambda-poison-pill.md": "2026-10-28T08:00:00+09:00",
-  "bedrock-datadog-soc-triage.md": "2026-11-09T08:00:00+09:00",
-  "claude-code-allow-rule-secrets.md": "2026-11-11T08:00:00+09:00",
-  "bundler-cooldown-lockfile.md": "2026-11-13T08:00:00+09:00",
-  "aurora-mysql-audit-log.md": "2026-11-16T08:00:00+09:00",
-  "dify-selfhost-defaults.md": "2026-11-02T08:00:00+09:00",
-  "laravel-prod-settings.md": "2026-11-04T08:00:00+09:00",
-  "ai-selfhost-first-visitor.md": "2026-11-06T08:00:00+09:00"
+  "bedrock-datadog-soc-triage.md": "2026-11-06T08:00:00+09:00",
+  "claude-code-allow-rule-secrets.md": "2026-11-09T08:00:00+09:00",
+  "bundler-cooldown-lockfile.md": "2026-11-11T08:00:00+09:00",
+  "aurora-mysql-audit-log.md": "2026-11-13T08:00:00+09:00",
+  "dify-selfhost-defaults.md": "2026-11-30T08:00:00+09:00",
+  "laravel-prod-settings.md": "2026-11-02T08:00:00+09:00",
+  "ai-selfhost-first-visitor.md": "2026-11-04T08:00:00+09:00"
 }
