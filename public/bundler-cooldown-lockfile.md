@@ -1,5 +1,5 @@
 ---
-title: Bundler にも「公開から7日待つ」設定が入ったので、Gemfile.lock に入った新しすぎる版がどうなるか試した
+title: Bundler の cooldown は Gemfile.lock にある版には効かない。bundle update --all でも残り、名前を指定した gem だけ戻る
 tags:
   - Ruby
   - Bundler
@@ -16,13 +16,17 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
-## きっかけ
+Bundler 4.0.13 で入った `cooldown`（公開から N 日たっていない版を選ばない設定）は、`Gemfile.lock` にすでに載っている版には効きません。`bundle install` では何も言わずにそのまま入り、`bundle update --all` でも新しすぎる版は残りました。戻ったのは、コマンドラインで名前を指定した gem だけです。なので、クールダウンを入れても「誰かが設定なしで書いた lockfile」は防げず、lockfile 自体を CI で見る仕組みが別に要ります。
 
-[前回の記事](https://qiita.com/Nekorock/items/d25fc8cb764c0e9325bc)では、npm・pnpm・Yarn の「公開されたばかりの版は入れない」設定（クールダウン）が、lockfile にすでに入っている版にも効くのかを試しました。止めてくれたのは pnpm だけでした。
+Bundler の cooldown を入れた、または入れようとしている Ruby のリポジトリの管理者向けです。設定の仕方、実在の gem で試した結果の表、Bundler のソース上の理由、CI で lockfile を検査する例の順に書いています。
 
-Ruby でも、2026 年 6 月 3 日リリースの Bundler 4.0.13 で同じ趣旨の `cooldown` が入りました。自分の Ruby のリポジトリにも入れたので、今回は同じことを Bundler で確かめます。
+[前回の記事](https://qiita.com/Nekorock/items/d25fc8cb764c0e9325bc)では、npm・pnpm・Yarn で同じことを試しました。lockfile にある版まで止めてくれたのは pnpm だけでした。今回はその Bundler 版です。
 
-先に書いておくと、Bundler は lockfile にある版にはクールダウンをかけない、と公式に明言しています。RubyGems のブログには「既存の `Gemfile.lock` は常にそのまま尊重されるので、cooldown を追加しても、すでにロックしている版が乱されることはない」とあります（参考に載せています）。なので「効かない」こと自体は新しい話ではありません。この記事では、それが実際の操作でどう見えるのか、特に `bundle install` を CI で回したときと、`bundle update` したときにどうなるのかを、実在の gem で確かめた結果をまとめます。
+## 公式の説明と、この記事で確かめたこと
+
+Bundler は、lockfile にある版にはクールダウンをかけない、と公式に明言しています。RubyGems のブログには「既存の `Gemfile.lock` は常にそのまま尊重されるので、cooldown を追加しても、すでにロックしている版が乱されることはない」とあります（参考に載せています）。なので「効かない」こと自体は新しい話ではありません。
+
+この記事で確かめたのは、それが実際の操作でどう見えるかです。試すと、`bundle install` を CI の設定で回しても警告は出ず、`bundle update` で全部を更新しても lockfile の新しすぎる版は残り、名前を指定した gem だけが古い版に戻りました。
 
 ## 設定の仕方
 
@@ -43,7 +47,7 @@ bundle install --cooldown 7    # その回だけ
 Only consider gem versions published at least N days ago. Use 0 to disable.
 ```
 
-`bundle lock` と `bundle cache` の `--cooldown` は少し遅れて 4.0.18 で入りました（2026 年 10 月現在の CHANGELOG による）。
+`bundle lock` と `bundle cache` の `--cooldown` は少し遅れて 4.0.18 で入りました（CHANGELOG による）。
 
 判定には、gem サーバーが compact index（`/info/<gem>`）で返す各版の `created_at` が使われます。rubygems.org では、たとえば rubocop の行の末尾がこうなっています。
 
@@ -55,18 +59,22 @@ Only consider gem versions published at least N days ago. Use 0 to disable.
 
 - 2026 年 10 月 27 日 9 時台（JST）、macOS、Ruby 4.0.9、Bundler 4.0.23
 - Gemfile は `gem "rubocop", "~> 1.92"` だけ
-- この時点の rubocop は 1.92.1（10 月 22 日公開、4 日前）、その前が 1.92.0（10 月 10 日公開）
-- 依存の parser も 3.3.13.0（10 月 23 日公開、3 日前）が出たばかりで、その前は 3.3.12.0（7 月 16 日公開）
+- 作業ディレクトリは 3 つ用意しました。a は cooldown なしの Gemfile、b は `source` に `cooldown: 7` を付けた Gemfile で、どちらも lockfile なしから始めます。c は `cooldown: 7` の Gemfile に、a で作った `Gemfile.lock` をそのまま置いたものです
 
-日付は rubygems.org の `https://rubygems.org/api/v1/versions/<gem>.json` で確認しました（UTC）。
+関係する版の公開日は次のとおりです。日付は rubygems.org の `https://rubygems.org/api/v1/versions/<gem>.json` で確認しました（UTC）。
 
-図にすると、rubocop 1.92.1 と parser 3.3.13.0 が 7 日の範囲に入っています。
+| gem | 版 | 公開日 | 試した時点で | 7 日の範囲に |
+| --- | --- | --- | --- | --- |
+| rubocop | 1.92.1 | 2026-10-22 | 4 日前 | 入る |
+| rubocop | 1.92.0 | 2026-10-10 | 17 日前 | 入らない |
+| parser | 3.3.13.0 | 2026-10-23 | 3 日前 | 入る |
+| parser | 3.3.12.0 | 2026-07-16 | 3 か月ほど前 | 入らない |
 
-![rubocop と parser の公開日と 7 日のクールダウンの範囲](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/bundler-cooldown-lockfile/release-timeline.png)
+rubocop 1.92.1 と parser 3.3.13.0 は、どちらも 7 日のクールダウンで外れるはずの版です。
 
-## lockfile がないとき
+## lockfile がないときは、1 つ前の版が選ばれる
 
-まずはクールダウンなしで `bundle lock` します。
+まず a で、クールダウンなしで `bundle lock` します。
 
 ```text
 $ bundle lock
@@ -77,7 +85,7 @@ Resolving dependencies...
 
 `rubocop (1.92.1)` と `parser (3.3.13.0)` が入りました。最新を取るので当然です。
 
-次に Gemfile の `source` に `cooldown: 7` を付けて、同じことをします。
+次に b で、`cooldown: 7` を付けた Gemfile で同じことをします。
 
 ```text
 $ bundle lock
@@ -91,9 +99,9 @@ The following gem versions were skipped by the cooldown setting:
 
 2 つとも 1 つ前の版に戻り、何を飛ばしたかも出してくれます（この一覧は 4.0.19 で追加されたものです）。`BUNDLE_COOLDOWN=7` で実行しても同じ結果でした。ここまでは期待どおりです。
 
-## lockfile に新しい版がすでに入っているとき
+## lockfile に新しい版があると、bundle install は黙ってそのまま入れる
 
-前回と同じ状況を作ります。チームの誰かがクールダウンの設定なしで `bundle lock` して、rubocop 1.92.1 と parser 3.3.13.0 が入った `Gemfile.lock` をコミットした、という想定です。Gemfile のほうには `cooldown: 7` が付いています。
+前回と同じ状況を作ります。チームの誰かがクールダウンの設定なしで `bundle lock` して、rubocop 1.92.1 と parser 3.3.13.0 が入った `Gemfile.lock` をコミットした、という想定です。c のディレクトリで、Gemfile には `cooldown: 7` が付いています。
 
 ```text
 $ bundle install
@@ -114,7 +122,11 @@ Bundled gems are installed into `./vendor/bundle`
 
 ここまでの 3 つの結果を並べるとこうなります。
 
-![cooldown なし、cooldown 7、lockfile ありの bundle install の出力の比較](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/bundler-cooldown-lockfile/bundle-compare.png)
+| 作業ディレクトリ | Gemfile | 最初の lockfile | コマンド | rubocop | parser | クールダウンの表示 |
+| --- | --- | --- | --- | --- | --- | --- |
+| a | cooldown なし | なし | `bundle lock` | 1.92.1 | 3.3.13.0 | なし |
+| b | `cooldown: 7` | なし | `bundle lock` | 1.92.0 | 3.3.12.0 | 飛ばした版の一覧が出る |
+| c | `cooldown: 7` | a で作ったもの | `bundle install` | 1.92.1 | 3.3.13.0 | なし（終了コード 0） |
 
 CI で使う設定でも試しました。Bundler 4 では `bundle install --frozen` というフラグ自体がなくなっていて、実行すると次のメッセージで終了コード 15 になります。
 
@@ -150,9 +162,9 @@ prism  1.9.0    2.0.0 (cooldown 2d)
 
 npm の `npm ci` や Yarn の `yarn install --immutable` と同じで、lockfile どおりに入れるときはクールダウンは見られません。pnpm のように lockfile の全エントリを公開日と照らし合わせる動きはありませんでした。
 
-## bundle update すれば戻るのか
+## bundle update --all でも残り、名前を指定した gem だけ戻る
 
-ここは少し意外でした。同じ lockfile で、更新系のコマンドをいくつか試した結果です（いずれも Gemfile に `cooldown: 7`）。
+ここは少し意外でした。c と同じ lockfile で、更新系のコマンドをいくつか試した結果です（いずれも Gemfile に `cooldown: 7`）。
 
 | コマンド | rubocop | parser |
 | --- | --- | --- |
@@ -176,7 +188,7 @@ The following gem versions were skipped by the cooldown setting:
 
 依存として入っている parser のような gem は、自分から名前を挙げない限りそのままです。
 
-## なぜこうなっているのか
+## なぜこうなっているのか: lockfile の版は意図して対象外にしている
 
 Bundler のソース（`lib/bundler/resolver.rb`）を読むと、クールダウンで候補から外すかどうかの判定はこうなっています。
 
@@ -217,13 +229,13 @@ flowchart TD
     class E,H apply
 ```
 
-## ほかに気をつけること
+## cooldown が黙って効かない経路は lockfile 以外にもある
 
-### 古い Bundler は黙って無視する
+### 古い Bundler は設定を無視する
 
 lockfile を書くのが 4.0.13 より前の Bundler だった場合も試しました。`gem install bundler -v 4.0.12` で入れた 4.0.12 で、`cooldown: 7` 付きの Gemfile を `bundle lock` すると、エラーも警告も出ずに rubocop 1.92.1 と parser 3.3.13.0 が入った lockfile ができました（`BUNDLED WITH` は 4.0.12）。Gemfile に書いておけば全員に効く、とは限りません。
 
-### created_at を返さないサーバー
+### created_at を返さないサーバーでは効かない
 
 `bundle config` の man ページには、`created_at` がない版は「クールダウンの範囲外として扱われ、解決できるまま残る」とあり、古い gem サーバー、v1 形式の compact index を返す社内レジストリ、rubygems.org の v2 移行より前の古いエントリが例に挙がっています。
 
@@ -231,7 +243,7 @@ rubygems.org については、rails・activesupport・json・nokogiri・rubocop
 
 ## lockfile のほうを CI で見る
 
-npm のときと同じで、lockfile を自分で検査すれば穴は埋まります。やることは単純で、`Gemfile.lock` の各版の公開日を rubygems.org から取って比べるだけです。
+lockfile は、設定のない環境、古い Bundler、ボットなど、いろいろな経路で書き換わります。npm のときと同じで、lockfile を自分で検査すれば穴は埋まります。やることは単純で、`Gemfile.lock` の各版の公開日を rubygems.org から取って比べるだけです。
 
 ```bash
 curl -s https://rubygems.org/api/v1/versions/rubocop.json \
@@ -239,7 +251,7 @@ curl -s https://rubygems.org/api/v1/versions/rubocop.json \
 # 2026-10-22T05:16:52.909Z
 ```
 
-これを CI で回すために、自分で [gemlock-guard](https://github.com/OTA-EITA/gemlock-guard) というツールを作って使っています（宣伝になってしまいますが、自作のツールです）。Gemfile と Gemfile.lock をテキストとして読むだけで、`--online` を付けたときだけ rubygems.org に公開日を問い合わせます。上の「誰かが設定なしで書いた lockfile」を検査するとこうなります。
+これを CI で回すために、自分で [gemlock-guard](https://github.com/OTA-EITA/gemlock-guard) というツールを作って使っています（宣伝になってしまいますが、自作のツールです）。Gemfile と Gemfile.lock をテキストとして読むだけで、`--online` を付けたときだけ rubygems.org に公開日を問い合わせます。上の c のディレクトリ（誰かが設定なしで書いた lockfile）を検査するとこうなります。
 
 ```text
 $ gemlock-guard --online c
@@ -248,8 +260,6 @@ c/Gemfile.lock:16  MEDIUM GG006  rubocop@1.92.1 was released 4 day(s) ago
 
 1 project(s), 2 finding(s): 0 high, 2 medium, 0 low
 ```
-
-![gemlock-guard が parser と rubocop を検出して終了コード 1 になる](https://raw.githubusercontent.com/OTA-EITA/qiita-articles/main/images/bundler-cooldown-lockfile/gemlock-guard.png)
 
 終了コードは 1 です。`bundle lock --update rubocop parser` で 2 つとも戻したあとの lockfile では `No problems found.` になりました。
 
@@ -268,28 +278,29 @@ GitHub Actions では、`bundle install` より前に置いています。
           fail-on: medium
 ```
 
-引っかかった gem は、名前を指定して戻せば Bundler のクールダウンがそのまま効きます。
+引っかかった gem は、名前を指定して lockfile を更新すれば Bundler のクールダウンがそのまま効きます。上の表で、rubocop と parser の両方が戻ったのはこのコマンドです。
 
 ```bash
-bundle update rubocop parser --conservative
+bundle lock --update rubocop parser
 ```
 
 ツールは何でもよくて、大事なのは前回と同じく「コミットされた lockfile を CI で見る」ことです。あわせて、Dependabot の `cooldown`（bundler に対応しています）を設定しておくと、ボットが新しすぎる版の PR を出してくることも減らせます。
 
-## 7 日で足りるのか
+## 7 日で足りるのか: 2019 年の 2 件はどちらも 7 日以内に削除されていた
 
 RubyGems で実際にあった乗っ取りを 2 件見てみます。
 
-- rest-client（2019 年 8 月）：メンテナのアカウントが乗っ取られ、バックドア入りの 1.6.10〜1.6.13 が 8 月 13〜14 日に公開されました。8 月 19 日に報告され、同じ日に削除されています（CVE-2019-15224）。公開から 5〜6 日です
-- strong_password（2019 年）：乗っ取られたアカウントから 0.0.7 が 6 月 25 日に公開されました（メンテナの説明による）。見つけた Tute Costa さんの記事（7 月 3 日付）によると、6 月 28 日に Rails のセキュリティ担当経由で RubyGems に報告し、すぐに削除されています（CVE-2019-13354）。公開から 3〜4 日です
+- rest-client（2019 年 8 月）：メンテナのアカウントが乗っ取られ、バックドア入りの 1.6.10〜1.6.13 が 8 月 14 日に公開されました。8 月 19 日に issue で報告され、同じ日に RubyGems のセキュリティチームが削除しています（CVE-2019-15224）。公開から 5 日ほどです
+- strong_password（2019 年）：乗っ取られたアカウントから 0.0.7 が 6 月 25 日に公開されました（メンテナの説明による）。見つけた Tute Costa さんの記事（7 月 3 日付）によると、6 月 28 日に Rails のセキュリティ担当に連絡し、そこから RubyGems に回ってすぐに削除されています（CVE-2019-13354）。公開から 3〜4 日です
 
 どちらも 7 日あれば、削除が間に合っていた計算です。ただ、strong_password は、Costa さんが依存を上げる前に差分を見ていて、GitHub に存在しないリリースだと気づいたのがきっかけです。クールダウンは見つけてもらうまでの時間を稼ぐもので、その間に誰かが見ていることが前提だということも覚えておきたいところです。
 
-## おわりに
+## 確かめていないこと
 
-Bundler のクールダウンは、新しく版を選ぶときには期待どおりに動き、何を飛ばしたかもはっきり出してくれます。一方で、lockfile にある版には `install` でも `update --all` でも手を付けません。これは既存プロジェクトを壊さないための意図した設計なので、Bundler の不具合と考えるより、守備範囲が「解決するとき」に限られていると理解しておくのがよさそうです。
-
-lockfile は、設定のない環境、古い Bundler、ボットなど、いろいろな経路で書き換わります。前回の npm と Yarn と同じく、Bundler でも CI で lockfile 自体を見る仕組みを別に用意しておくのが安心です。
+- 試したのは rubocop と parser の 1 組だけで、macOS 上の Bundler 4.0.23（古い Bundler の確認は 4.0.12）です。ほかの OS や、4.1.0 のベータ版では試していません
+- 名前を指定して戻すコマンドとして試したのは、表にある `bundle update rubocop` と `bundle lock --update rubocop parser` だけです。`bundle update rubocop parser` や `--conservative` を付けた場合は試していません
+- `created_at` を返さない社内レジストリでの挙動は、man ページの記述を読んだだけで、実際には試していません
+- Dependabot の `cooldown` が、lockfile にすでにある新しすぎる版をどう扱うかは試していません
 
 ## 参考
 
