@@ -1,7 +1,5 @@
 ---
-title: >-
-  Claude Code で「Yes, and don't ask again」を選んだコマンドのパスワードは設定ファイルに残る。自分のマシンを調べたら 74
-  件あった
+title: Claude Code の「Yes, and don't ask again」はパスワードごと設定に残る。自分のマシンで少なくとも 74 件見つかった
 tags:
   - ClaudeCode
   - Security
@@ -18,15 +16,17 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
-## きっかけ
+Claude Code の確認で「Yes, and don't ask again」を選ぶと、そのコマンドが許可ルールとして設定ファイルに保存されます。`PGPASSWORD='…' psql …` のようにパスワードを含むコマンドなら、パスワードもそのままの文字列で残ります。
 
-Claude Code にデータベースを見てもらっていると、`PGPASSWORD='…' psql -h … -c '…'` のようなコマンドを何度も実行しようとします。毎回確認が出るのが面倒で、つい「Yes, and don't ask again」を選んでいました。
+自分の作業用マシンを調べると、平文の秘密情報が少なくとも 74 件見つかりました。
 
-このとき、そのコマンドが許可ルールとして設定ファイルに保存されます。パスワードも含めて、そのままの文字列でです。頭では分かっていたつもりでしたが、実際にどれくらい残っているのかは見たことがありませんでした。
+- 多くは、データベースに接続するコマンドを許可したときのもの
+- `.claude/settings.local.json` だけでなく、ユーザー設定、`~/.claude.json`、git で共有している `.claude/settings.json` からも見つかった
+- 先頭の `PGPASSWORD=` を許可ルールの照合が読み飛ばさないので、前方一致のルールにしても入ってしまう
 
-そこで、AI コーディングエージェントの設定ファイルを検査する [agent-config-audit](https://github.com/OTA-EITA/agent-config-audit) という小さなツールを作り（自作です）、2026 年 10 月 25 日に自分の作業用マシンを調べました。平文の秘密情報が 74 件見つかりました。
+Claude Code で確認を「don't ask again」で通してきた人向けに、なぜそうなるのかをドキュメントで確認した結果と、見つけたあとにやったこと、次から入らないようにすることをまとめました。
 
-この記事では、なぜそうなるのかをドキュメントで確認した結果と、見つけたあとに何をしたか、次から入らないようにするために何をしたかを書きます。
+調べたのは 2026 年 10 月 25 日、Claude Code 2.1.287、macOS 26.3 です。検査には、AI コーディングエージェントの設定ファイルを検査する [agent-config-audit](https://github.com/OTA-EITA/agent-config-audit) という小さなツールを作って使いました（自作です）。形式の決まっていないトークンは拾えないので、74 件は下限です。
 
 ## 似た指摘はすでにある
 
@@ -38,7 +38,7 @@ Claude Code にデータベースを見てもらっていると、`PGPASSWORD='�
 
 どれも「公開された場所」を外から数えた調査です。この記事では逆に、ふだん使っている 1 台のマシンの中を見て、どのファイルにどれくらい溜まっていたか、どう片付けたかを書きます。
 
-## 何が起きているのか
+## なぜパスワードがルールに入るのか
 
 ### 「Yes, and don't ask again」の保存先
 
@@ -66,7 +66,7 @@ flowchart TD
 
 （「Yes」だけを選んだ場合も、会話の記録としてはコマンドが `~/.claude/projects/` に残ります。ただしこちらは既定で 30 日たつと消えます。[`cleanupPeriodDays`](https://code.claude.com/docs/en/settings-reference#cleanupperioddays) を参照してください。許可ルールには期限がありません）
 
-### パスワードがルールに入ってしまう理由
+### 先頭の環境変数の代入を読み飛ばさない
 
 `Bash(psql *)` のように前方一致のルールにしておけば、パスワードは入らないはずです。そうならないのは、許可ルールの照合が先頭の環境変数の代入を飛ばさないからです。ドキュメントにはこうあります。
 
@@ -112,13 +112,13 @@ Claude Code が作ったファイルなら、グローバルの git excludes に
 | `~/.claude.json` | 1 | MCP サーバーの `env` に書いた API キー |
 | あるプロジェクトの `.claude/settings.json` | 1 | URL に埋め込まれたパスワード |
 
-合計 74 件、すべて重大度 high です。
+合計 74 件、すべて重大度 high です。ツールが拾えない形式のトークンもあるので、実際にはもっとあった可能性があります。
 
 ほとんどは、データベースに接続するコマンドを許可したときのものでした。ユーザー設定に 13 件入っていた経緯は追えていません。ユーザー設定はどのプロジェクトで Claude Code を起動しても読み込まれるファイルなので、パスワードの置き場所としてはいちばん範囲が広いところです。
 
 いちばんまずかったのは最後の 1 件です。`.claude/settings.json` は共有するためのファイルなので git で管理されていて、プライベートリポジトリとはいえ push 済みでした。
 
-## 同じことを手元で試す
+## 手元で検査する
 
 自分の環境に向けて実行した出力は載せられないので、偽の値を入れたプロジェクトを作って同じツールをかけてみます。
 
@@ -171,18 +171,18 @@ $ npx github:OTA-EITA/agent-config-audit .
 
 見てのとおり、`curl` の `Authorization: Bearer fake-token-…` は検出していません。このツールは GitHub や AWS などの決まった形式のトークンや、`PASSWORD=` のような書き方を見ています。形式のないトークンを全部拾おうとすると誤検知だらけになるので、取りこぼしはあります。
 
-ツールを使わなくても、`jq` で怪しいルールの位置だけを出すことはできます。値そのものは表示しないようにしています。
+ツールを使わなくても、`jq` で怪しいルールの位置だけを出すことはできます。値そのものは表示しないようにしています。リポジトリを置いているディレクトリで実行します。
 
 ```bash
 PAT='(?i)pass(word|wd)?=|token|secret|api_?key|authorization|bearer'
-find ~/.claude ~/src -path '*/.claude/settings*.json' -not -path '*/node_modules/*' 2>/dev/null |
+find ~/.claude . -path '*/.claude/settings*.json' -not -path '*/node_modules/*' 2>/dev/null |
 while read -r f; do
   jq -r --arg f "$f" --arg re "$PAT" '(.permissions.allow // []) | to_entries[]
     | select(.value | test($re)) | "\($f)\tallow[\(.key)]"' "$f"
 done
 ```
 
-偽のプロジェクトに向けると、`curl` の行も含めて 3 件出ます。
+偽のプロジェクトの親ディレクトリで実行すると、`curl` の行も含めて 3 件出ます（`~/.claude` の分は省いています）。
 
 ```console
 ./demo-app/.claude/settings.local.json	allow[1]
@@ -190,7 +190,7 @@ done
 ./demo-app/.claude/settings.local.json	allow[3]
 ```
 
-`~/src` の部分は、リポジトリを置いているディレクトリに読み替えてください。`~/.claude.json` は `permissions` ではなく `mcpServers` の下に MCP の設定が入るので、これとは別に見る必要があります。
+`~/.claude.json` は `permissions` ではなく `mcpServers` の下に MCP の設定が入るので、これとは別に見る必要があります。
 
 ## 見つけたあとにやること
 
@@ -202,14 +202,17 @@ done
 
 ### 2. 秘密情報を含むルールを消す
 
-自分の環境では、6 つの設定ファイルから合計 73 件のルールを、バックアップを取ってから削除しました。件数が多いと手作業では漏れるので、`jq` を使うと楽です。
+自分の環境では、6 つの設定ファイルから合計 73 件のルールを、バックアップを取ってから削除しました。74 件のうち残りの 1 件は `~/.claude.json` の MCP の API キーで、これは下に書くとおりまだ消していません。件数が多いと手作業では漏れるので、`jq` を使うと楽です。
 
 ```bash
 PAT='(?i)pass(word|wd)?=|token|secret|api_?key|authorization|bearer'
 f=.claude/settings.local.json
 cp -p "$f" "$f.bak"
 jq --arg re "$PAT" '.permissions.allow |= map(select(test($re) | not))' "$f.bak" > "$f"
+diff <(jq '.permissions.allow' "$f.bak") <(jq '.permissions.allow' "$f")
 ```
+
+このパターンは広めに当てているので、`Bash(gh auth token)` のように秘密情報を含まないルールも消えます。最後の `diff` で消えるルールを確かめて、残したいものがあれば戻してください。
 
 偽のプロジェクトで試すと、`npm test` と `git status` の 2 件だけが残り、`settings.local.json` についてのツールの検出も 0 件になりました（`.mcp.json` の 1 件はこの手順では消えないので残ります）。バックアップにはもちろん元の値が残っているので、動作を確認したら消します。
 
@@ -248,7 +251,7 @@ MCP サーバーの設定は、値を直接書かずに環境変数を参照し�
 }
 ```
 
-ひとつ注意があります。リモートの MCP サーバーの `url` と `headers` では、`ANTHROPIC_API_KEY`・`AWS_BEARER_TOKEN_BEDROCK`・`NPM_TOKEN` など一部の変数は、設定していても空として扱われます。リポジトリの `.mcp.json` が、Claude Code やクラウドの認証情報を外部のサーバーに送れないようにするためです。そうした値を渡したい場合は、自分で付けた別の名前の変数にコピーしてから参照するように、とドキュメントに書かれています。
+ひとつ注意があります。リモートの MCP サーバーの `url` と `headers` では、`ANTHROPIC_API_KEY`・`AWS_BEARER_TOKEN_BEDROCK`・`NPM_TOKEN` など一部の変数は、設定していても空として扱われます。リポジトリの `.mcp.json` が、Claude Code やクラウドの認証情報を外部のサーバーに送れないようにするためです。そうした値を渡したい場合は、自分で付けた別の名前の変数にコピーしてから参照するように、とドキュメントに書かれています（同じページの「Credential variables that read as empty」）。
 
 ## 次から入らないようにすること
 
@@ -287,11 +290,14 @@ jobs:
 
 ただし CI で見られるのは、コミットされたファイルだけです。`settings.local.json` やユーザー設定は CI からは見えないので、手元で定期的に実行するしかありません。
 
-## おわりに
+## 確かめていないこと
 
-「Yes, and don't ask again」は、その場の 1 回の判断を、期限のないルールに変える操作です。コマンドの中身がそのまま保存されることを分かっていても、確認の画面でそこまで意識するのは難しいと感じました。
+- VS Code 拡張の承認カードで保存先を選ぶ動き。ドキュメントには共有の `.claude/settings.json` も選べるとありますが、試していません
+- Claude Code 2.1.287 以外のバージョン。保存先や環境変数の読み飛ばしは、バージョンで変わる可能性があります
+- ユーザー設定に 13 件入っていた経緯
+- ツールが拾えない形式のトークンが、ほかにどれくらいあったか
 
-Claude Code に限らず、エージェントの設定ファイルは「設定」というより、実行したコマンドの記録に近いものになっています。`.env` と同じくらいの扱いで、たまに中を見ておくのがよさそうです。
+「Yes, and don't ask again」は、その場の 1 回の判断を、期限のないルールに変える操作です。エージェントの設定ファイルは `.env` と同じくらいの扱いで、たまに中を見ておくのがよさそうです。
 
 ## 参考
 
