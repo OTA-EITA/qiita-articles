@@ -1,5 +1,7 @@
 ---
-title: Bundler の cooldown は Gemfile.lock にある版には効かない。bundle update --all でも残り、名前を指定した gem だけ戻る
+title: >-
+  Bundler の cooldown は Gemfile.lock にある版には効かない。bundle update --all でも残り、名前を指定した
+  gem だけ戻る
 tags:
   - Ruby
   - Bundler
@@ -7,7 +9,7 @@ tags:
   - Security
   - サプライチェーン攻撃
 private: true
-updated_at: '2026-10-30T21:45:22+09:00'
+updated_at: '2026-10-30T21:50:22+09:00'
 id: 07b0d2ee27ddb1138d1d
 organization_url_name: null
 slide: false
