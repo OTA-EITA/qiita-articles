@@ -7,7 +7,7 @@ tags:
   - Security
   - SRE
 private: true
-updated_at: '2026-10-30T21:05:21+09:00'
+updated_at: '2026-10-30T21:09:12+09:00'
 id: 0f79e37af673acd01119
 organization_url_name: null
 slide: false
