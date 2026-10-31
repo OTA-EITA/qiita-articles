@@ -7,7 +7,7 @@ tags:
   - サプライチェーン攻撃
   - CI
 private: false
-updated_at: '2026-10-31T18:57:41+09:00'
+updated_at: '2026-10-31T19:49:16+09:00'
 id: 56e1a736dc61a6863326
 organization_url_name: null
 slide: false
