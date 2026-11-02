@@ -7,7 +7,7 @@ tags:
   - MCP
   - SRE
 private: true
-updated_at: '2026-11-01T04:13:16+09:00'
+updated_at: '2026-11-02T10:59:02+09:00'
 id: 065e4b9c19785fd42d90
 organization_url_name: null
 slide: false

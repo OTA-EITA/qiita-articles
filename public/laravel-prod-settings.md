@@ -6,8 +6,8 @@ tags:
   - Security
   - SRE
   - CORS
-private: true
-updated_at: '2026-11-01T04:13:16+09:00'
+private: false
+updated_at: '2026-11-02T10:59:03+09:00'
 id: b2340a58e926db2458a2
 organization_url_name: null
 slide: false
