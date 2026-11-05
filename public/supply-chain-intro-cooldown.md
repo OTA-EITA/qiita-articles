@@ -7,8 +7,8 @@ tags:
   - GitHubActions
   - 初心者
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-05T19:30:53+09:00'
+id: 59fb9e0eb24eb3554be2
 organization_url_name: null
 slide: false
 ignorePublish: false
