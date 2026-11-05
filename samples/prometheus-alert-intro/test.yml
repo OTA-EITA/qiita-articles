@@ -1,0 +1,35 @@
+rule_files: [rules.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      # 1 分おきに取り込まれるカウンター。毎分 6 件ずつエラーが増える
+      - series: 'errors_total{job="api"}'
+        values: '0+6x15'
+      # 1 回だけ 95% に跳ねる CPU
+      - series: 'cpu_percent{instance="web-1"}'
+        values: '10 10 10 95 10 10 10 10 10 10'
+    promql_expr_test:
+      # 範囲が 1 分だと、取り込みが 1 分おきなので値が返らない
+      - expr: rate(errors_total[1m])
+        eval_time: 10m
+        exp_samples: []
+      # 範囲が 5 分なら 1 秒あたり 0.1 件 (毎分 6 件) が出る
+      - expr: rate(errors_total[5m])
+        eval_time: 10m
+        exp_samples:
+          - labels: '{job="api"}'
+            value: 0.1
+    alert_rule_test:
+      # エラーは毎分増えているのに、範囲 1 分のアラートは鳴らない
+      - {eval_time: 10m, alertname: ErrorsShortWindow, exp_alerts: []}
+      - eval_time: 10m
+        alertname: ErrorsLongWindow
+        exp_alerts: [{exp_labels: {job: api}}]
+      # 1 回跳ねただけで、for のないアラートは鳴る
+      - eval_time: 3m
+        alertname: CpuNoFor
+        exp_alerts: [{exp_labels: {instance: web-1}}]
+      # for: 5m なら鳴らない
+      - {eval_time: 3m, alertname: CpuFor5m, exp_alerts: []}
+      - {eval_time: 8m, alertname: CpuFor5m, exp_alerts: []}

@@ -1,10 +1,10 @@
 ---
-title: Prometheus のアラートをちゃんと理解したい人のための入門：コピペしたルールは銀の弾丸ではない
+title: Prometheus のアラートをちゃんと理解したい人のための入門：for と rate() の範囲を間違えると、鳴りすぎるか一度も鳴らない
 tags:
   - prometheus
-  - 監視
   - SRE
-  - AlertManager
+  - 監視
+  - DevOps
   - 初心者
 private: true
 updated_at: '2026-11-05T19:55:19+09:00'
@@ -16,7 +16,9 @@ posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
 
-Prometheus のアラートルールの書き方を確かめる小さな道具（[promrule-lint](https://github.com/OTA-EITA/promrule-lint)）を作っていたとき、試しに [awesome-prometheus-alerts](https://github.com/samber/awesome-prometheus-alerts) に当ててみました。スターが 8,000 以上あり、README に「copy-paste YAML」と書かれている、よく使われているアラート集です。
+Prometheus のアラートルール（alerting rules）の書き方を確かめる小さな道具（[promrule-lint](https://github.com/OTA-EITA/promrule-lint)）を作っていたとき、試しに [awesome-prometheus-alerts](https://github.com/samber/awesome-prometheus-alerts) に当ててみました。
+
+スターが 8,000 以上あり、README に「copy-paste YAML」と書かれている、よく使われているアラート集です。
 
 1,162 本のアラートのうち、255 本は 1 回の揺れで鳴る書き方で、98 本は今の Prometheus の初期設定では一度も鳴らない書き方でした。障害のときに読む手順書（runbook）へのリンクは、1,162 本のどれにもありませんでした。
 
@@ -176,7 +178,11 @@ $ promtool test rules test.yml
 
 `promtool check rules` は書き方の誤りを見るだけなので、このルールは問題なく通ります。エラーも警告も出ないまま、鳴らないアラートが本番に入ります。
 
-この「範囲は取り込み間隔の 2〜4 倍以上にする」という話自体は、Grafana のドキュメントや Prometheus のメーリングリストでも以前から言われています（参考に載せています）。awesome-prometheus-alerts の 98 本は、`[1m]` の範囲で `rate`・`increase`・`delta` を使っているもので、1 分おきの取り込みのまま入れると、上と同じことになります。15 秒おきや 30 秒おきに取り込んでいる環境なら、範囲の中にデータが 2 つ以上入るので動きます。つまり、ルールが正しいかどうかは、ルールのファイルだけを見ても決まりません。自分の環境の取り込み間隔と組み合わせて初めて決まります。
+この「範囲は取り込み間隔の 2〜4 倍以上にする」という話自体は、Grafana のドキュメントや Prometheus のメーリングリストでも以前から言われています（参考に載せています）。
+
+awesome-prometheus-alerts の 98 本は、`[1m]` の範囲で `rate`・`increase`・`delta` を使っているもので、1 分おきの取り込みのまま入れると、上と同じことになります。
+
+15 秒おきや 30 秒おきに取り込んでいる環境なら、範囲の中にデータが 2 つ以上入るので動きます。つまり、ルールが正しいかどうかは、ルールのファイルだけを見ても決まりません。自分の環境の取り込み間隔と組み合わせて初めて決まります。
 
 ## 落とし穴 3：鳴っても、何をすればいいか分からない
 
@@ -186,7 +192,9 @@ Prometheus の公式ドキュメントのアラートの章には、こう書か
 
 > Alerts should link to relevant consoles and make it easy to figure out which component is at fault.
 
-多くのチームでは、`annotations` に `runbook_url` を書いて、鳴ったときの手順書へのリンクを付けています。awesome-prometheus-alerts の 1,162 本には、`summary` と `description` はありますが、`runbook_url` は 1 本もありません。アラート集は、どのチームでも使える形で配っている以上、それぞれのチームの手順書へのリンクを持てないのは当然です。だからこそ、コピペしたあとに自分で足す必要があります。
+多くのチームでは、`annotations` に `runbook_url` を書いて、鳴ったときの手順書へのリンクを付けています。
+
+awesome-prometheus-alerts の 1,162 本には、`summary` と `description` はありますが、`runbook_url` は 1 本もありません。アラート集は、どのチームでも使える形で配っている以上、それぞれのチームの手順書へのリンクを持てないのは当然です。だからこそ、コピペしたあとに自分で足す必要があります。
 
 手順書に書くことは、長くなくてかまいません。
 
@@ -217,7 +225,9 @@ $ npx github:OTA-EITA/promrule-lint --fail-on none dist/rules
 
 ## 自分のルールを確かめる
 
-ルールを足したり変えたりしたときは、`promtool test rules` で「鳴ってほしいときに鳴り、鳴ってほしくないときに鳴らない」ことを確かめておくと安心です。この記事の `test.yml` は、上の抜粋を 1 つのファイルにまとめたもので、`promtool test rules test.yml` で動きます。テストのデータは自分の環境の取り込み間隔に合わせて書きます。1 分おきに取り込んでいるなら `interval: 1m` です。
+ルールを足したり変えたりしたときは、`promtool test rules` で「鳴ってほしいときに鳴り、鳴ってほしくないときに鳴らない」ことを確かめておくと安心です。
+
+この記事で使った [rules.yml と test.yml](https://github.com/OTA-EITA/qiita-articles/tree/main/samples/prometheus-alert-intro) は GitHub に置いています。2 つを同じフォルダに置いて `promtool test rules test.yml` を実行すれば、同じ結果になります。テストのデータは自分の環境の取り込み間隔に合わせて書きます。1 分おきに取り込んでいるなら `interval: 1m` です。
 
 あわせて、CI でルールの書き方の落とし穴を機械的に見るようにしています。
 
@@ -228,6 +238,7 @@ $ npx github:OTA-EITA/promrule-lint --fail-on none dist/rules
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+      # 実際はタグかコミットで固定する（npx github:OTA-EITA/promrule-lint#v0.1.0 など）
       - run: npx github:OTA-EITA/promrule-lint --scrape-interval 30s rules/
 ```
 

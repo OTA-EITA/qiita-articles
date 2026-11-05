@@ -1,0 +1,13 @@
+groups:
+  - name: demo
+    interval: 1m
+    rules:
+      - alert: ErrorsShortWindow
+        expr: rate(errors_total[1m]) > 0
+      - alert: ErrorsLongWindow
+        expr: rate(errors_total[5m]) > 0
+      - alert: CpuNoFor
+        expr: cpu_percent > 90
+      - alert: CpuFor5m
+        expr: cpu_percent > 90
+        for: 5m
