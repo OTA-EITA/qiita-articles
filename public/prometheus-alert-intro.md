@@ -1,14 +1,14 @@
 ---
 title: Prometheus のアラートをちゃんと理解したい人のための入門：コピペしたルールは銀の弾丸ではない
 tags:
-  - Prometheus
+  - prometheus
   - 監視
   - SRE
-  - Alertmanager
+  - AlertManager
   - 初心者
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-05T19:42:11+09:00'
+id: 46fd258b7351820e6ee6
 organization_url_name: null
 slide: false
 ignorePublish: false
