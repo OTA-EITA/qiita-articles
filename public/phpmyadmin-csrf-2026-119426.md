@@ -1,14 +1,16 @@
 ---
-title: phpMyAdmin 5.2.3 の CSRF（CVE-2026-119426）を手元で確かめた。原因はスーパーグローバルだけ消して PSR-7 のリクエストを消し忘れたこと。5.2 系にはまだ修正版がない
+title: >-
+  phpMyAdmin 5.2.3 の CSRF（CVE-2026-119426）を手元で確かめた。原因はスーパーグローバルだけ消して PSR-7
+  のリクエストを消し忘れたこと。5.2 系にはまだ修正版がない
 tags:
-  - phpMyAdmin
+  - phpMyadmin
   - Security
-  - CSRF
+  - csrf
   - PHP
   - 脆弱性
 private: false
-updated_at: ''
-id: null
+updated_at: '2026-11-05T12:34:29+09:00'
+id: 16fbf2683b2677e88af9
 organization_url_name: null
 slide: false
 ignorePublish: false
