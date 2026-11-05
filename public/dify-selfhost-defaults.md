@@ -7,7 +7,7 @@ tags:
   - SRE
   - Go
 private: true
-updated_at: '2026-11-05T19:52:28+09:00'
+updated_at: '2026-11-05T19:55:20+09:00'
 id: 2ada1ea993e5911efae2
 organization_url_name: null
 slide: false
