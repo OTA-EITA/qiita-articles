@@ -3,15 +3,17 @@ title: OpenSSH on musl のパスワード認証バイパス（*sshole）を、mu
 tags:
   - Security
   - OpenSSH
-  - Alpine
+  - alpine
   - SRE
   - 脆弱性
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-06T19:01:41+09:00'
+id: a1790c68f85928fec09b
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 2026 年 11 月 5 日に、musl libc を使う Linux（Alpine など）の OpenSSH で、パスワードを持たないはずのアカウントにログインできてしまう問題が公開されました。通称「\*sshole」です。
