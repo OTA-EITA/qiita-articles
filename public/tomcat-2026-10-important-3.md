@@ -7,11 +7,13 @@ tags:
   - SpringBoot
   - 脆弱性
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-07T08:31:24+09:00'
+id: 8f38751bd7ac6a5666cf
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 2026 年 10 月 12 日に出た Apache Tomcat 11.0.27・10.1.61・9.0.123 で、深刻度 Important の脆弱性が 3 件直りました。レスポンスが別の人のものと混ざるもの 2 件と、パスワードなしで認証が通るもの 1 件です。
