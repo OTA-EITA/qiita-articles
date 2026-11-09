@@ -6,8 +6,8 @@ tags:
   - AIエージェント
   - MCP
   - SRE
-private: true
-updated_at: '2026-11-07T17:13:53+09:00'
+private: false
+updated_at: '2026-11-09T11:15:01+09:00'
 id: 065e4b9c19785fd42d90
 organization_url_name: null
 slide: false
