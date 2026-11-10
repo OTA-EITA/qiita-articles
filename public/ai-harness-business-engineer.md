@@ -7,10 +7,13 @@ tags:
   - Claude
   - 設計
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-10T13:30:53+09:00'
+id: 7873d3a2f9e5b3328466
 organization_url_name: null
 slide: false
+ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 AIエージェントに「終わった」と言わせない仕組み（ハーネス）を厚くすれば、誤りは減るのか。経費申請のチェックを題材に、ハーネスあり・なしで比べました。
