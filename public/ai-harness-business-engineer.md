@@ -11,7 +11,6 @@ updated_at: ''
 id: null
 organization_url_name: null
 slide: false
-ignorePublish: true
 ---
 
 AIエージェントに「終わった」と言わせない仕組み（ハーネス）を厚くすれば、誤りは減るのか。経費申請のチェックを題材に、ハーネスあり・なしで比べました。
