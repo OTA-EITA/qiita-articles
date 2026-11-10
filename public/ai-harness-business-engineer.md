@@ -6,8 +6,8 @@ tags:
   - ハーネスエンジニアリング
   - Claude
   - 設計
-private: true
-updated_at: '2026-11-10T14:35:49+09:00'
+private: false
+updated_at: '2026-11-10T15:23:53+09:00'
 id: 7873d3a2f9e5b3328466
 organization_url_name: null
 slide: false
