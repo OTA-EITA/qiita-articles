@@ -7,7 +7,7 @@ tags:
   - npm
   - 脆弱性
 private: false
-updated_at: '2026-11-12T07:52:19+09:00'
+updated_at: '2026-11-12T07:57:11+09:00'
 id: c5bc6d3605bd700df112
 organization_url_name: null
 slide: false
