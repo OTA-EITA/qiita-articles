@@ -7,10 +7,13 @@ tags:
   - npm
   - 脆弱性
 private: false
-updated_at: ''
-id: null
+updated_at: '2026-11-12T07:52:19+09:00'
+id: c5bc6d3605bd700df112
 organization_url_name: null
 slide: false
+ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 Node.js の 26.x・24.x・22.x に、セキュリティリリースが出ました。直った脆弱性は 16 件で、深刻度は HIGH が 7 件、MEDIUM が 6 件、LOW が 3 件です。
