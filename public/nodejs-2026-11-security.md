@@ -57,6 +57,20 @@ Node.js の 26.x・24.x・22.x に、セキュリティリリースが出まし�
 
 このほか、依存ライブラリの更新として、undici（24.x、26.x）と sqlite（22.x、24.x）が入っています。
 
+修正前（Homebrew の v24.22.1）と、公式の配布物の v24.22.3 で、`process.versions` を比べました。
+
+```console
+$ node -p 'JSON.stringify({undici: process.versions.undici, llhttp: process.versions.llhttp, sqlite: process.versions.sqlite})'
+```
+
+| | v24.22.1（修正前） | v24.22.3（修正版） |
+|---|---|---|
+| undici | 7.30.1 | 7.30.2 |
+| llhttp | 9.4.3 | 9.4.4 |
+| sqlite | 3.54.1 | 3.54.1 |
+
+sqlite は、更新の対象に挙がっていますが、版の表記は変わっていませんでした。
+
 ## 自分の版を確かめる
 
 ```console
@@ -93,7 +107,7 @@ $ grep -rn 'node-version' .github/workflows/
 
 | 経路 | 修正版 |
 |---|---|
-| 公式の配布物（nodejs.org/dist） | 3 系列とも、あり |
+| 公式の配布物（nodejs.org/dist） | 3 系列とも、あり。macOS（arm64）の v24.22.3 は、SHA-256 を `SHASUMS256.txt` と照合して実行し、`node -v` が `v24.22.3` になった |
 | Docker Hub の公式イメージ（`node:24.22.3` など） | 3 系列とも、あり |
 | `actions/setup-node` が先に見る一覧（actions/node-versions） | まだない |
 | Homebrew の `node@24` | まだない（24.22.2 のまま） |
