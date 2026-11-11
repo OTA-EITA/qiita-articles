@@ -8,8 +8,8 @@ tags:
   - rubygems
   - Security
   - サプライチェーン攻撃
-private: true
-updated_at: '2026-11-10T15:39:49+09:00'
+private: false
+updated_at: '2026-11-11T11:25:49+09:00'
 id: 07b0d2ee27ddb1138d1d
 organization_url_name: null
 slide: false
