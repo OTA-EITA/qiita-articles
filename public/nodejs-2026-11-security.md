@@ -23,7 +23,7 @@ ignorePublish: true
 ## 結論
 
 - 26.x・24.x・22.x はすべて対象です。修正版は 【26.x の版】・【24.x の版】・【22.x の版】 です
-- サポートが終わった版（20.x 以前）には修正版が出ません。上の系列に移る必要があります
+- サポートが終わった版には修正版が出ません。20.x は 2026-04-30 にサポートが終わっています（[Node.js のリリース予定表](https://github.com/nodejs/Release/blob/main/schedule.json)）。22.x 以降へ移る必要があります
 - 【HIGH の件の要約を 1〜2 行】
 
 ## 直った脆弱性
@@ -37,6 +37,16 @@ ignorePublish: true
 ```console
 $ node -v
 ```
+
+各系列の最新のセキュリティ版は、公式の配布一覧（`https://nodejs.org/dist/index.json`）の `security` で分かります。
+
+```console
+$ curl -s https://nodejs.org/dist/index.json \
+  | jq -r '[.[] | select(.security)] | group_by(.version | split(".")[0]) | map(max_by(.date)) | .[]
+           | select(.version | test("^v(22|24|26)\\.")) | "\(.version) \(.date)"'
+```
+
+自分の版が、ここに出る版より古ければ、上げる必要があります。
 
 CI やコンテナで使っている版も見てください。
 
@@ -53,7 +63,7 @@ $ grep -rn 'node-version' .github/workflows/
 ### nvm を使っている場合
 
 ```console
-$ nvm install 24 --reinstall-packages-from=current
+$ nvm install --reinstall-packages-from=current 24
 $ nvm alias default 24
 $ node -v
 ```
@@ -61,7 +71,9 @@ $ node -v
 ### Homebrew の場合
 
 ```console
-$ brew update && brew upgrade node@24
+$ brew update
+$ brew info node@24   # 修正版が来ているかを確かめる
+$ brew upgrade node@24
 ```
 
 ### Docker の場合
@@ -74,10 +86,10 @@ $ docker build --pull -t myapp .
 
 ### GitHub Actions の場合
 
-`actions/setup-node` に `check-latest: true` を付けると、キャッシュではなく最新のパッチ版を取りに行きます。
+`actions/setup-node` に `check-latest: true` を付けると、ランナーにキャッシュされた版が最新かを確かめ、古ければ最新の版をダウンロードします（[setup-node の説明](https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#check-latest-version)）。既定は `false` で、キャッシュの版が使われます。
 
 ```yaml
-- uses: actions/setup-node@v5
+- uses: actions/setup-node@v7
   with:
     node-version: 24
     check-latest: true
