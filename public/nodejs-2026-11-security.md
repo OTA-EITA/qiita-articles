@@ -103,28 +103,30 @@ $ grep -rn 'node-version' .github/workflows/
 
 ## 上げ方
 
-修正版がどこから手に入るかは、経路ごとに違いました。2026-11-12 7:48〜7:50 に確かめた結果です。
+修正版がどこから手に入るかは、経路ごとに違いました。2026-11-12 の朝と夕方に確かめた結果です。
 
-| 経路 | 修正版 |
-|---|---|
-| 公式の配布物（nodejs.org/dist） | 3 系列とも、あり。macOS（arm64）の v24.22.3 は、SHA-256 を `SHASUMS256.txt` と照合して実行し、`node -v` が `v24.22.3` になった |
-| Docker Hub の公式イメージ（`node:24.22.3` など） | 3 系列とも、あり |
-| `actions/setup-node` が先に見る一覧（actions/node-versions） | まだない |
-| Homebrew の `node@24` | まだない（24.22.2 のまま） |
+| 経路 | 朝 7:48〜7:50 | 夕方 16:17〜16:18 |
+|---|---|---|
+| 公式の配布物（nodejs.org/dist） | 3 系列とも、あり。macOS（arm64）の v24.22.3 は、SHA-256 を `SHASUMS256.txt` と照合して実行し、`node -v` が `v24.22.3` になった | あり |
+| Docker Hub の公式イメージ（`node:24.22.3` など） | 3 系列とも、あり | あり |
+| `actions/setup-node` が先に見る一覧（actions/node-versions） | まだない | 3 系列とも、あり |
+| Homebrew の `node@24` | まだない（24.22.2 のまま） | あり（24.22.3） |
 
 ### GitHub Actions の場合
 
-公開の直後に、`ubuntu-latest` で `actions/setup-node@v7` を 3 通りの指定で動かしました。
+`ubuntu-latest` で `actions/setup-node@v7` を、3 通りの指定で、朝と夕方に動かしました。
 
-| 指定 | 入った版 |
-|---|---|
-| `node-version: 24` | v24.22.2 |
-| `node-version: 24` と `check-latest: true` | v24.22.2 |
-| `node-version: 24.22.3` | v24.22.3 |
+| 指定 | 朝 7:49 | 夕方 16:18 |
+|---|---|---|
+| `node-version: 24` | v24.22.2 | v24.22.2 |
+| `node-version: 24` と `check-latest: true` | v24.22.2 | v24.22.3 |
+| `node-version: 24.22.3` | v24.22.3 | v24.22.3 |
 
 `check-latest: true` を付けても、修正前の v24.22.2 が入りました。版を明示した場合は、ログに `Not found in manifest. Falling back to download directly from Node` と出て、公式の配布物から v24.22.3 が入りました。
 
 setup-node は、まず actions/node-versions から取り、そこにない版は、公式の配布物から直接ダウンロードします（[setup-node の説明](https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#check-latest-version)）。公開の直後は、一覧に載るまで、修正版の番号を明示するのが確実です。
+
+夕方には一覧に載り、`check-latest: true` でも修正版が入りました。ただし、`check-latest` を付けない既定のままでは、ランナーにキャッシュされた v24.22.2 が、夕方でも入りました（ログは `Found in cache @ /opt/hostedtoolcache/node/24.22.2/x64`）。系列だけを指定している場合は、`check-latest: true` を付けるか、版を明示してください。
 
 ```yaml
 - uses: actions/setup-node@v7
@@ -142,12 +144,22 @@ $ docker build --pull -t myapp .
 
 ### Homebrew の場合
 
-確かめた時点では、`node@24` はまだ 24.22.2 でした。上げる前に、修正版が来ているかを確かめてください。
+朝の時点では、`node@24` はまだ 24.22.2 でした。上げる前に、修正版が来ているかを確かめてください。
 
 ```console
 $ brew update
 $ brew info node@24   # 修正版が来ているかを確かめる
 $ brew upgrade node@24
+```
+
+夕方 16:17 には 24.22.3 が来ていて、筆者の手元で上げました。
+
+```console
+$ brew upgrade node@24
+==> Upgraded 1 requested outdated package
+node@24 24.22.1 -> 24.22.3
+$ node -v
+v24.22.3
 ```
 
 ### nvm を使っている場合
