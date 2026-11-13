@@ -6,8 +6,8 @@ tags:
   - MySQL
   - Security
   - SRE
-private: true
-updated_at: '2026-11-12T16:19:38+09:00'
+private: false
+updated_at: '2026-11-13T12:03:53+09:00'
 id: 0f79e37af673acd01119
 organization_url_name: null
 slide: false
