@@ -1,5 +1,5 @@
 ---
-title: Evernote をやめたくて、PDF のスキャン・写真・録音まで中身で探せる Mac アプリを作った（Swift・OSS）
+title: Evernote の代わりに、録音や写真の中身まで探せる Mac アプリを作った
 tags:
   - Swift
   - macOS
