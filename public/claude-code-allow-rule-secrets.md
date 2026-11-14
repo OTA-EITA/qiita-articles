@@ -1,5 +1,5 @@
 ---
-title: 'Claude Code の「Yes, and don''t ask again」はパスワードごと設定に残る。自分のマシンで少なくとも 74 件見つかった'
+title: 'Claude Code の「don''t ask again」で、パスワードが設定ファイルに残っていた。手元だけで 74 件以上'
 tags:
   - ClaudeCode
   - Security
