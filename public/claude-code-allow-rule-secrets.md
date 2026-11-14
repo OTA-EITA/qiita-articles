@@ -1,5 +1,5 @@
 ---
-title: 'Claude Code の「don''t ask again」で、パスワードが設定ファイルに残っていた。手元だけで 74 件以上'
+title: Claude Code の「don't ask again」で、パスワードが設定ファイルに残っていた。手元だけで 74 件以上
 tags:
   - ClaudeCode
   - Security
@@ -7,7 +7,7 @@ tags:
   - MCP
   - SRE
 private: false
-updated_at: '2026-11-09T11:15:01+09:00'
+updated_at: '2026-11-14T12:18:46+09:00'
 id: 065e4b9c19785fd42d90
 organization_url_name: null
 slide: false

@@ -7,7 +7,7 @@ tags:
   - SRE
   - CORS
 private: false
-updated_at: '2026-11-02T10:59:03+09:00'
+updated_at: '2026-11-14T12:18:46+09:00'
 id: b2340a58e926db2458a2
 organization_url_name: null
 slide: false
