@@ -1,5 +1,5 @@
 ---
-title: AI セルフホスト 5 製品を公式 compose で立てた直後、最初に来た人が管理者になれたのは n8n と Open WebUI だった
+title: n8n と Open WebUI は、立てた直後なら最初に来た人が管理者になれる
 tags:
   - n8n
   - LLM
