@@ -1,5 +1,5 @@
 ---
-title: 壊れた決済イベント 1 件で、後ろの不正な決済はどうなるのか。Kinesis + Lambda のリトライ設定を LocalStack で比べた
+title: 壊れたイベント 1 件で、Kinesis + Lambda の後ろの決済はどうなるか
 tags:
   - AWS
   - Kinesis
