@@ -7,11 +7,13 @@ tags:
   - 個人開発
   - OCR
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-14T11:47:20+09:00'
+id: dc687054a515e377ddf7
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 メモは Evernote、書類は PDF、写真は写真アプリ、打ち合わせの録音はボイスメモ。探すときに場所を思い出すところから始まるのが面倒で、全部まとめて中身で探せる Mac アプリを作りました。
