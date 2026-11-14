@@ -1,5 +1,5 @@
 ---
-title: Laravel 13 の APP_DEBUG=true は Cookie・本文・SQL を伏せずに出す。本番に残りやすい 4 つの設定を動かして確かめた
+title: Laravel 13 の APP_DEBUG=true を本番に残すと、Cookie も SQL も伏せずに出る
 tags:
   - Laravel
   - PHP
