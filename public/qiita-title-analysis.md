@@ -7,11 +7,13 @@ tags:
   - アウトプット
   - データ分析
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-14T13:14:44+09:00'
+id: f9662d94584da872f51d
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 
 Qiita で、いいねが 50 以上ついた記事 117 本と、2 以下だった記事 657 本の題名を比べました。一番差が大きかったのは、題名を「。」や「：」で 2 つに区切っているかどうかでした。伸びた記事では 8%、伸びなかった記事では 28% です。
