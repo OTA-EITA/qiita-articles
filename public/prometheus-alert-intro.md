@@ -6,8 +6,8 @@ tags:
   - 監視
   - devops
   - 初心者
-private: true
-updated_at: '2026-11-14T14:27:39+09:00'
+private: false
+updated_at: '2026-11-16T11:30:07+09:00'
 id: 46fd258b7351820e6ee6
 organization_url_name: null
 slide: false
