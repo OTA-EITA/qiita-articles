@@ -100,7 +100,7 @@ client = AzureOpenAI(
 | Anthropic | `input_tokens`、`output_tokens` | **`input_tokens` に含まれない** | `output_tokens` に含まれる | `input_tokens` + `cache_read_input_tokens` + `cache_creation_input_tokens` |
 | Gemini / Vertex AI | `promptTokenCount`、`candidatesTokenCount` | `promptTokenCount` に含まれる | **`candidatesTokenCount` に含まれない** | 出力 = `candidatesTokenCount` + `thoughtsTokenCount` |
 
-Anthropic の文書には、`input_tokens` は最後のキャッシュの区切りより後ろのトークンだけで、合計は `cache_read_input_tokens + cache_creation_input_tokens + input_tokens` だと書いてあります。キャッシュがよく当たっている呼び出しほど、`input_tokens` だけを見ると入力が小さく見えます。キャッシュ込みで 10 万トークン読んでいても、`input_tokens` が数十ということが起きます。
+Anthropic の文書には、`input_tokens` は最後のキャッシュの区切りより後ろのトークンだけで、合計は `cache_read_input_tokens + cache_creation_input_tokens + input_tokens` だと書いてあります。キャッシュがよく当たっている呼び出しほど、`input_tokens` だけを見ると入力が小さく見えます。最後の区切りの後ろが短い呼び出しなら、キャッシュ込みで 10 万トークン読んでいても、`input_tokens` は数十になりえます。
 
 Gemini は逆で、考える過程のトークン（`thoughtsTokenCount`）が出力とは別に返ってきます。Gemini の文書の料金の説明にも、思考を有効にすると出力トークンと思考トークンの合計で料金がかかる、と書かれています。推論するモデルでは、`candidatesTokenCount` だけを出力として集計すると出力が少なく出ます。
 
@@ -110,7 +110,7 @@ Gemini は逆で、考える過程のトークン（`thoughtsTokenCount`）が�
 
 OpenAI 互換の API でストリームを使うと、何も指定しなければ使用量が返ってきません。リクエストに `stream_options.include_usage: true` を付けると、`[DONE]` の直前に、`choices` が空で `usage` だけが入ったチャンクが 1 つ増えます。上の画像の 2 つ目の `data:` の行がそれです。
 
-チャットの画面はほとんどがストリームなので、ここを取りこぼすとトークン数がほぼ 0 になります。llm-slo では `inject_stream_usage` を有効にすると、ストリームのリクエストでクライアントが指定していないときだけ、この項目をプロキシが足します。クライアントが自分で `false` にしていれば触りません。
+チャットの画面はストリームで作ることが多いので、ここを取りこぼすと、ストリームで呼んだ分のトークン数がまるごと抜け落ちます。llm-slo では `inject_stream_usage` を有効にすると、ストリームのリクエストでクライアントが指定していないときだけ、この項目をプロキシが足します。クライアントが自分で `false` にしていれば触りません。
 
 1 つ気をつけることがあります。増える最後のチャンクは `choices` が空です。チャンクごとに `choices[0]` を読む古い自前のコードは、ここで落ちるかもしれません。使用量が取れなかった呼び出しは `llm_slo_usage_missing_total` に数えるので、ここが 0 であることを確かめれば取りこぼしに気づけます。
 
@@ -199,7 +199,7 @@ OpenTelemetry の決まりには、この点がはっきり書いてありまし
 - 可用性の失敗率が 50 / 150 = 0.333 になること。切った分の 1,000 件が分母に入っていないことの確認です
 - レイテンシの失敗率が 0.2 になること。`le="5.0"` を正規表現で拾えていることの確認です
 - 鳴るアラートと鳴らないアラートが表のとおりであること
-- 予算のアラートが 15 分待ってから鳴ること
+- 予算のペースのアラートが、超えてすぐではなく、続いたあとで鳴ること
 
 ```
 === RUN   TestPromtoolCheck
@@ -215,7 +215,7 @@ GitHub Actions でも promtool 3.16.0 を入れて同じテストを流してい
 
 メトリクスの名前を決めるときに、OpenTelemetry の決まりを原文で読みに行ったところ、生成 AI の部分が `semantic-conventions` のリポジトリから `semantic-conventions-genai` という別のリポジトリに移っていました。元のページには「Moved」とだけ書かれています。
 
-名前も変わっていました。以前のトークン数のメトリクスは `gen_ai.client.token.usage` に `gen_ai.token.type` で入力と出力を分ける形でした。今は `gen_ai.client.inference.usage.input_tokens` と `output_tokens` に分かれ、キャッシュと推論も別の名前になっています。最初のチャンクまでの時間も `gen_ai.client.inference.time_to_first_chunk` という名前でした。どれも状態は Development で、これからも変わりえます。
+名前も変わっていました。以前のトークン数のメトリクスは `gen_ai.client.token.usage` に `gen_ai.token.type` で入力と出力を分ける形でした。今は `gen_ai.client.inference.usage.input_tokens` と `output_tokens` に分かれ、キャッシュと推論も別の名前になっています。最初のチャンクまでの時間は、クライアント側では `gen_ai.client.inference.time_to_first_chunk` という名前になっています。どれも状態は Development で、これからも変わりえます。
 
 移動前の名前のまま書かれた資料もまだあるので、名前を決めるときは移動先のリポジトリを直接見るのが確実です。llm-slo の README には、どの時点の名前に合わせたかを書いています。
 
