@@ -3,15 +3,17 @@ title: LLM の呼び出しに SLO を付けたら、トークンの数え方が 
 tags:
   - LLM
   - SRE
-  - Prometheus
+  - prometheus
   - 生成AI
   - Go
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-18T07:59:51+09:00'
+id: 85113023df8acf468d62
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 LLM の API 呼び出しを、ほかの外部 API と同じように SLO とエラーバジェットで見るための小さなプロキシ [llm-slo](https://github.com/OTA-EITA/llm-slo) を作りました。作っている途中で、OpenAI・Anthropic・Gemini で「入力トークン」に含まれるものが違うこと、OpenAI のストリームは頼まないと使用量を返さないこと、Prometheus 3 ではヒストグラムの `le="2"` が `le="2.0"` に変わってアラートが黙ること、の 3 つにぶつかりました。
 
