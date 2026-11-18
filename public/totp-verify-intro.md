@@ -6,8 +6,8 @@ tags:
   - MFA
   - TOTP
   - 初心者
-private: true
-updated_at: '2026-11-18T08:13:09+09:00'
+private: false
+updated_at: '2026-11-18T12:58:07+09:00'
 id: 55e251dedba8716aefe5
 organization_url_name: null
 slide: false
