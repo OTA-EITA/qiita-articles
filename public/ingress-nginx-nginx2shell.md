@@ -2,16 +2,18 @@
 title: ingress-nginx の最終3版は NGINX2Shell に当たっていた
 tags:
   - nginx
-  - Kubernetes
+  - kubernetes
   - Security
   - 脆弱性
   - SRE
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-20T01:44:40+09:00'
+id: b2c66992a626ca66b963
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 2026 年 3 月に開発を終えた kubernetes/ingress-nginx の最後のコントローラー 3 版 v1.15.1・v1.14.5・v1.13.9 は、どれも nginx 1.27.1 を同梱していました。1.27.1 は、11 月に公表された HTTP/2 の脆弱性 NGINX2Shell（CVE-2026-123007）が当たる範囲の版です。公式の nginx イメージは 11 月 18 日に修正版へ差し替わりましたが、ingress-nginx にはもう新しい版が出ません。
 
