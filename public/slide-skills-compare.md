@@ -6,7 +6,7 @@ tags:
   - 生成AI
   - AI
   - LLM
-private: true
+private: false
 updated_at: '2026-11-20T03:13:44+09:00'
 id: f7a62fe85e2bd07bd8ae
 organization_url_name: null
