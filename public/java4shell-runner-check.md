@@ -7,7 +7,7 @@ tags:
   - GitHubActions
   - OpenJDK
 private: false
-updated_at: '2026-11-19T10:33:43+09:00'
+updated_at: '2026-11-19T11:04:59+09:00'
 id: 57ec377b987dc5518f95
 organization_url_name: null
 slide: false
