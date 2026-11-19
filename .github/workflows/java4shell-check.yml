@@ -1,0 +1,35 @@
+name: java4shell-check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runner:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2025]
+        n: [1, 2, 3, 4, 5]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: samples/java4shell-check
+      - name: Check CPU and Java
+        shell: bash
+        run: samples/java4shell-check/check.sh
+
+  images:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Java versions in official images
+        run: |
+          for img in eclipse-temurin:17 eclipse-temurin:21 eclipse-temurin:25 amazoncorretto:17 amazoncorretto:21 amazoncorretto:25; do
+            v=$(docker run --rm "$img" java -XshowSettings:properties -version 2>&1 | grep -m1 'java.runtime.version' | awk -F= '{print $2}' | tr -d ' ')
+            d=$(docker image inspect "$img" --format '{{.Created}}')
+            echo "image $img: $v (created $d)"
+          done
