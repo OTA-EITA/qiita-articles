@@ -7,11 +7,13 @@ tags:
   - AI
   - LLM
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-20T03:13:44+09:00'
+id: f7a62fe85e2bd07bd8ae
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 同じ原稿・同じ依頼文・同じ答えで、スライドを作るスキル 5 つにデッキを作らせ、1 枚あたりの文字数と「角丸か影の付いた箱」の数を数えました。箱は 0 個のスキルが 3 つ、19 個が 1 つ、100 個が 1 つでした。「話しながら見せる」と答えたのに、1 枚の文字数の中央値が 250 字を超えたスキルが 4 つありました。
 
