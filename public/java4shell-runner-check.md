@@ -7,11 +7,13 @@ tags:
   - GitHubActions
   - OpenJDK
 private: true
-updated_at: ''
-id: null
+updated_at: '2026-11-19T10:33:43+09:00'
+id: 57ec377b987dc5518f95
 organization_url_name: null
 slide: false
 ignorePublish: false
+posting_campaign_uuid: null
+agreed_posting_campaign_term: false
 ---
 2026 年 11 月 17 日に公開された Java4Shell（CVE-2026-114938）は、Java の版だけでなく **CPU が AVX-512 VBMI を持っているか** で当たるかどうかが決まります。そこで GitHub Actions の x64 の runner を 10 回起動して調べたところ、**7 回で条件がそろっていました**。どの runner にも、最初から修正前の Java 17・21・25 が入っています。公式の Docker イメージも、11 月 19 日の時点で Eclipse Temurin はまだ修正前で、Amazon Corretto は修正済みでした。
 
