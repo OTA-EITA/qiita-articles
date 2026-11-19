@@ -15,7 +15,7 @@ ignorePublish: false
 posting_campaign_uuid: null
 agreed_posting_campaign_term: false
 ---
-2026 年 3 月に開発を終えた kubernetes/ingress-nginx の最後のコントローラー 3 版 v1.15.1・v1.14.5・v1.13.9 は、どれも nginx 1.27.1 を同梱していました。1.27.1 は、11 月に公表された HTTP/2 の脆弱性 NGINX2Shell（CVE-2026-123007）が当たる範囲の版です。公式の nginx イメージは 11 月 18 日に修正版へ差し替わりましたが、ingress-nginx にはもう新しい版が出ません。
+2026 年 3 月に開発を終えた kubernetes/ingress-nginx の最後のコントローラー 3 版 v1.15.1・v1.14.5・v1.13.9 は、どれも nginx 1.27.1 を同梱していました。1.27.1 は、11 月 18 日に修正版が出た HTTP/2 の脆弱性 NGINX2Shell（CVE-2026-123007）が当たる範囲の版です。公式の nginx イメージはその日のうちに修正版へ差し替わりましたが、ingress-nginx にはもう新しい版が出ません。
 
 NGINX2Shell の解説記事はすでにいくつかありますが、この記事では「ingress-nginx を使っているクラスタはどうなるか」に絞ります。GitHub Actions でイメージの中の nginx の版を実際に読んだ結果と、ingress-nginx を使っている人がいまやることをまとめます。
 
@@ -27,12 +27,12 @@ nginx.org の security advisories によると、CVE-2026-123007 は HTTP/2 の�
 |---|---|
 | 当たる版 | 1.9.5〜1.31.8 |
 | 修正版 | 1.31.9 以降（mainline）、1.30.7 以降（stable） |
-| 条件 | HTTP/2 を使う設定 |
-| 同じリリースで直った他の脆弱性 | CVE-2026-123634（resolver）、CVE-2026-121810（HTTP/3）、CVE-2026-123633（HTTP/2）、CVE-2026-118899（TLS 1.3 の無限ループ） |
+| 条件 | HTTP/2 を使う設定（F5 の説明による） |
+| 同じリリースで直った他の脆弱性 | CVE-2026-123634（resolver）、CVE-2026-121810（HTTP/3）、CVE-2026-123633（HTTP/2）、CVE-2026-118899（TLS 1.3 の無限ループ）、CVE-2026-113425（mail proxy） |
 
-Debian の security tracker に載っている説明では、細工した通信で worker がクラッシュし、ASLR が無効か回避できる場合はコードの実行につながるとされています。
+Debian の security tracker に載っている F5 の説明では、細工した通信で worker がクラッシュし、ASLR が無効か回避できる場合はコードの実行につながるとされています。
 
-1.9.5 は HTTP/2 が入った版なので、HTTP/2 を有効にしている nginx はほぼ全部が対象です。
+1.9.5 は ngx_http_v2_module が入った版なので、HTTP/2 を有効にしている nginx はほぼ全部が対象です。
 
 ## ingress-nginx はもう直らない
 
@@ -80,7 +80,7 @@ ingress-nginx のイメージは entrypoint が nginx ではないので、`--en
 
 ソースのとおり、3 版とも 1.27.1 でした。どの版に上げても逃げられません。
 
-一方、公式の nginx イメージは修正版の公開から間を置かず、11 月 18 日に作り直されていました。`nginx:alpine` のようなタグで使っている人は、pull し直してデプロイし直せば直ります。
+一方、公式の nginx イメージは修正版が出た 11 月 18 日のうちに作り直されていました。`nginx:alpine` のようなタグで使っている人は、pull し直してデプロイし直せば直ります。
 
 ## ディストリビューションのパッケージは版番号では判断できない
 
@@ -103,14 +103,16 @@ apt の nginx も同じジョブで確かめました。ディストリビュー
 - 手元の開発用アプリに `FROM nginx:alpine` のフロントエンドが 2 つあった。設定は `listen 80;` だけで HTTP/2 は使っていないが、イメージを作り直しておく
 - ingress-nginx を入れたクラスタは自分たちにはない
 
-自分たちのところは無事でした。一方、ingress-nginx は今もクラスタの入り口によく使われていて、関わっている現場の中にもあります。開発終了は告知されていましたが、終了後に大きな脆弱性が来ると何が起きるかが、今回はっきりしました。
+自分たちのところは無事でした。ただ、ingress-nginx は今もクラスタの入り口によく使われています。開発終了は告知されていましたが、終了後に大きな脆弱性が来ると何が起きるかが、今回はっきりしました。
 
 ## ingress-nginx を使っているか確かめる
 
 クラスタの中のコントローラーのイメージを一覧にします。
 
 ```bash
-kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{range .spec.containers[*]}{.image}{"\n"}{end}{end}' | grep -i ingress-nginx
+kubectl get pods -A -o json \
+  | jq -r '.items[] | .metadata.namespace as $ns | .spec.containers[].image | "\($ns)\t\(.)"' \
+  | grep ingress-nginx/controller
 ```
 
 `registry.k8s.io/ingress-nginx/controller` が出てきたら、そのタグを check.sh に渡せば同梱の nginx の版が分かります。なお、NGINX Inc.（F5）の NGINX Ingress Controller は別のプロジェクトで、この記事の対象ではありません。
@@ -141,7 +143,7 @@ data:
 
 - ブラウザとの通信が HTTP/1.1 になる。多重化がなくなり、ページによっては表示が遅くなる
 - gRPC を ingress-nginx 経由で通している場合は通らなくなる。gRPC は HTTP/2 が前提
-- 同じリリースで直った CVE-2026-123634（resolver）と CVE-2026-118899（TLS 1.3）は HTTP/2 と関係がないので、これでは防げない
+- 同じリリースで直った CVE-2026-123634（resolver、0.6.18〜）と CVE-2026-118899（TLS 1.3、1.13.0〜）は 1.27.1 も対象で、HTTP/2 と関係がないので、これでは防げない
 
 あくまで移行までのつなぎです。
 
