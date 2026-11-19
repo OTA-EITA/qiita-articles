@@ -1,0 +1,29 @@
+name: nginx2shell-check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: samples/nginx2shell-check
+      - name: nginx versions in images
+        run: |
+          samples/nginx2shell-check/check.sh \
+            registry.k8s.io/ingress-nginx/controller:v1.15.1 \
+            registry.k8s.io/ingress-nginx/controller:v1.14.5 \
+            registry.k8s.io/ingress-nginx/controller:v1.13.9 \
+            nginx:latest nginx:mainline nginx:stable nginx:alpine nginx:stable-alpine
+      - name: nginx in Ubuntu packages
+        run: |
+          for r in ubuntu:24.04 ubuntu:22.04 debian:12 debian:13; do
+            v=$(docker run --rm "$r" sh -c 'apt-get update -qq >/dev/null 2>&1; apt-cache policy nginx | sed -n "s/ *Candidate: //p"')
+            echo "apt $r: nginx $v"
+          done
