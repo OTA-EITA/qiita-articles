@@ -6,7 +6,7 @@ tags:
   - 脆弱性
   - GitHubActions
   - OpenJDK
-private: true
+private: false
 updated_at: '2026-11-19T10:33:43+09:00'
 id: 57ec377b987dc5518f95
 organization_url_name: null
